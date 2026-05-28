@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Away - Dual Monitor</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Syne:wght@400;600;700;800&family=Epilogue:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=Syne:wght@400;600;700;800&family=Epilogue:wght@300;400;500;600&family=Monoton&family=Caveat:wght@400;700&family=Bebas+Neue&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#f0ede6;--accent:#d24317;--font:'Outfit',sans-serif}
 *,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
@@ -27,13 +27,34 @@ body{font-family:var(--font);-webkit-font-smoothing:antialiased;color:var(--ink)
 body.locked #msg{pointer-events:none;cursor:default}
 body.locked #msg:hover{background:transparent}
 
-#tickerTrack{position:absolute;top:50%;left:0;will-change:transform;display:none;white-space:nowrap;pointer-events:none;font-family:var(--font);font-size:clamp(44px,6.5vw,94px);font-weight:500;line-height:1.08;letter-spacing:-.025em;color:var(--ink);text-shadow:0 2px 60px rgba(0,0,0,.38),0 0 100px rgba(0,0,0,.2);transform:translate3d(0,-50%,0)}
+#tickerTrack{position:absolute;top:50%;left:0;will-change:transform;display:none;white-space:nowrap;pointer-events:none;font-family:var(--font);font-size:clamp(44px,6.5vw,94px);font-weight:500;line-height:1.08;letter-spacing:-.025em;color:var(--ink);transform:translate3d(0,-50%,0)}
 .ticker-item{display:inline-block;padding-right:1.2em;flex-shrink:0}
 body.scroll-left #tickerTrack,body.scroll-right #tickerTrack{display:block}
 body.scroll-left #msg3d,body.scroll-right #msg3d{visibility:hidden;pointer-events:none}
 
 @keyframes shimmer{from{background-position:200% center}to{background-position:-200% center}}
 body.a-shimmer #msg,body.a-shimmer .ticker-item{background:linear-gradient(90deg,var(--ink) 0%,var(--ink) 36%,rgba(255,255,255,.95) 50%,var(--ink) 64%,var(--ink) 100%) center/200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3.6s linear infinite}
+
+@keyframes ani-neon{0%,100%{text-shadow:0 0 4px var(--accent),0 0 14px var(--accent),0 0 32px var(--accent),0 0 60px var(--accent);opacity:1}45%{text-shadow:0 0 2px var(--accent),0 0 6px var(--accent);opacity:.7}48%{opacity:.95}}
+body.a-neon #msg,body.a-neon .ticker-item{animation:ani-neon 2.4s ease-in-out infinite}
+
+@keyframes ani-rainbow{from{background-position:0% center}to{background-position:300% center}}
+body.a-rainbow #msg,body.a-rainbow .ticker-item{background:linear-gradient(90deg,#ff006e,#ffbe0b,#06ffa5,#3a86ff,#8338ec,#ff006e) 0 center/300% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:ani-rainbow 5s linear infinite}
+
+@keyframes ani-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+body.a-breathe #msg,body.a-breathe .ticker-item{display:inline-block;animation:ani-breathe 3.4s ease-in-out infinite;transform-origin:center}
+
+@keyframes ani-wobble{0%,100%{transform:rotate(-1.3deg)}50%{transform:rotate(1.3deg)}}
+body.a-wobble #msg,body.a-wobble .ticker-item{display:inline-block;animation:ani-wobble 2.4s ease-in-out infinite;transform-origin:center}
+
+@keyframes ani-chroma{0%,100%{text-shadow:-2px 0 #ff0040,2px 0 #00d4ff,0 0 1px currentColor}25%{text-shadow:-3px 1px #ff0040,3px -1px #00d4ff,0 0 1px currentColor}50%{text-shadow:-1px -1px #ff0040,1px 1px #00d4ff,0 0 1px currentColor}75%{text-shadow:-4px 0 #ff0040,4px 0 #00d4ff,0 0 1px currentColor}}
+body.a-chroma #msg,body.a-chroma .ticker-item{animation:ani-chroma 1.8s steps(8,end) infinite}
+
+@keyframes ani-drift{0%,100%{transform:translateY(0) rotate(0deg)}25%{transform:translateY(-6px) rotate(.4deg)}50%{transform:translateY(0) rotate(0deg)}75%{transform:translateY(6px) rotate(-.4deg)}}
+body.a-drift #msg,body.a-drift .ticker-item{display:inline-block;animation:ani-drift 6s ease-in-out infinite}
+
+@keyframes ani-fade{0%,100%{opacity:.18}50%{opacity:1}}
+body.a-fade #msg,body.a-fade .ticker-item{animation:ani-fade 4.2s ease-in-out infinite}
 
 #monitorBadge{position:fixed;top:26px;right:80px;z-index:4;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink);opacity:.32;pointer-events:none}
 
@@ -117,6 +138,11 @@ input[type=color]::-webkit-color-swatch{border:none}
       <button data-s="scroll-left">&#8592; Left</button>
       <button data-s="scroll-right">Right &#8594;</button>
     </div>
+    <div class="sz-row" style="margin-top:6px">
+      <span id="spdVal" class="sz-lbl">140</span>
+      <input type="range" id="spdR" min="15" max="400" step="5" value="140">
+      <button id="spdRst" class="sz-rst" title="Reset speed">&#8635;</button>
+    </div>
   </div>
   <div class="grp">
     <div class="glbl">Animation</div>
@@ -126,6 +152,11 @@ input[type=color]::-webkit-color-swatch{border:none}
       <button data-a="a-float">Float</button>
       <button data-a="a-glitch">Glitch</button>
       <button data-a="a-shimmer">Shim</button>
+      <button data-a="a-neon">Neon</button>
+      <button data-a="a-rainbow">Rainb</button>
+      <button data-a="a-breathe">Breath</button>
+      <button data-a="a-wobble">Wobble</button>
+      <button data-a="a-chroma">Chroma</button>
     </div>
   </div>
   <div class="grp">
@@ -215,6 +246,7 @@ try{
     if(type==='mouse'){ if(data.monitor !== monitorIndex){ remoteMouse = data; } }
     if(type==='epoch'){ sharedEpoch = data.epoch; }
     if(type==='speed'){ tickerSpeed = data.speed; }
+    if(type==='tempo'){ sharedEpoch = data.epoch; tickerSpeed = data.speed; const spdR=document.getElementById('spdR'); const spdVal=document.getElementById('spdVal'); if(spdR){spdR.value=data.speed;spdVal.textContent=Math.round(data.speed);} }
     if(type==='hello'){
       // a sibling came online — re-publish our state
       publishWidth();
@@ -518,7 +550,7 @@ document.getElementById('animSeg').querySelectorAll('button').forEach(b=>{
   });
 });
 
-const FONTS=[['Outfit','\'Outfit\',sans-serif'],['DM Mono','\'DM Mono\',monospace'],['Cormorant','\'Cormorant Garamond\',serif'],['Syne','\'Syne\',sans-serif'],['Epilogue','\'Epilogue\',sans-serif'],];
+const FONTS=[['Outfit','\'Outfit\',sans-serif'],['DM Mono','\'DM Mono\',monospace'],['Cormorant','\'Cormorant Garamond\',serif'],['Syne','\'Syne\',sans-serif'],['Epilogue','\'Epilogue\',sans-serif'],['Monoton','\'Monoton\',cursive'],['Caveat','\'Caveat\',cursive'],['Bebas','\'Bebas Neue\',sans-serif'],];
 const fontList=document.getElementById('fontList');
 FONTS.forEach(([label,fam],i)=>{const b=document.createElement('button');b.innerHTML=`<span style="font-family:${fam}">${label}</span>`;if(i===0)b.classList.add('on');b.onclick=()=>{msg.style.fontFamily=fam;[...fontList.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');rebuildTicker();broadcast('font',{font:fam});};fontList.appendChild(b);});
 
@@ -526,6 +558,22 @@ const szR=document.getElementById('szR');
 const szVal=document.getElementById('szVal');
 szR.oninput=e=>{msg.style.fontSize=e.target.value+'px';szVal.textContent=e.target.value+'px';rebuildTicker();broadcast('size',{fontSize:parseInt(e.target.value)});};
 document.getElementById('szRst').onclick=()=>{msg.style.fontSize='';szVal.textContent='Auto';szR.value=72;rebuildTicker();broadcast('size',{fontSize:null});};
+
+const spdR=document.getElementById('spdR'),spdVal=document.getElementById('spdVal');
+spdR.value=tickerSpeed; spdVal.textContent=Math.round(tickerSpeed);
+function setSpeed(v){
+  // Preserve the visible position when speed changes:
+  // viewer(t) = (t - epoch)/1000 * speed must stay continuous.
+  const now = Date.now();
+  const oldViewer = (now - sharedEpoch)/1000 * tickerSpeed;
+  tickerSpeed = Math.max(1, v);
+  sharedEpoch = now - (oldViewer / tickerSpeed) * 1000;
+  LS.set('away_speed', tickerSpeed);
+  LS.set('away_epoch', sharedEpoch);
+  broadcast('tempo',{epoch:sharedEpoch, speed:tickerSpeed});
+}
+spdR.oninput=e=>{ setSpeed(parseFloat(e.target.value)); spdVal.textContent=Math.round(tickerSpeed); };
+document.getElementById('spdRst').onclick=()=>{ setSpeed(140); spdR.value=140; spdVal.textContent='140'; };
 
 function h2rgb(h){const n=parseInt(h.slice(1),16);return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255];}
 document.getElementById('cInk').oninput=e=>{document.documentElement.style.setProperty('--ink',e.target.value);broadcast('style',{inkColor:e.target.value});};
