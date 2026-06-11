@@ -56,6 +56,31 @@ body.a-drift #msg,body.a-drift .ticker-item{display:inline-block;animation:ani-d
 @keyframes ani-fade{0%,100%{opacity:.18}50%{opacity:1}}
 body.a-fade #msg,body.a-fade .ticker-item{animation:ani-fade 4.2s ease-in-out infinite}
 
+@keyframes ani-flicker{0%,100%{opacity:1}3%{opacity:.4}6%{opacity:1}7%{opacity:.2}8%{opacity:1}38%{opacity:1}39%{opacity:.6}40%{opacity:1}71%{opacity:1}72%{opacity:.3}73%{opacity:.9}74%{opacity:.25}76%{opacity:1}}
+body.a-flicker #msg,body.a-flicker .ticker-item{animation:ani-flicker 4.6s linear infinite}
+
+@keyframes ani-swing{0%,100%{transform:perspective(900px) rotateY(-14deg)}50%{transform:perspective(900px) rotateY(14deg)}}
+body.a-swing #msg,body.a-swing .ticker-item{display:inline-block;animation:ani-swing 5.2s ease-in-out infinite;transform-origin:center}
+
+/* ─── Cinematic layers ─── */
+#vignette{position:fixed;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.34) 100%);opacity:0;transition:opacity .8s}
+body.fx-vignette #vignette{opacity:1}
+#grain{position:fixed;inset:-100px;z-index:2;pointer-events:none;opacity:0;transition:opacity .8s;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+body.fx-grain #grain{opacity:.05;animation:grainShift .42s steps(3) infinite}
+@keyframes grainShift{0%{transform:translate(0,0)}33%{transform:translate(-40px,25px)}66%{transform:translate(30px,-35px)}100%{transform:translate(0,0)}}
+
+/* ─── Entrance reveal ─── */
+@keyframes reveal{from{opacity:0;filter:blur(22px);transform:scale(.96)}to{opacity:1;filter:blur(0);transform:scale(1)}}
+body.entering #msg3d{animation:reveal 1.5s cubic-bezier(.16,.84,.3,1) both}
+body.entering #clock,body.entering #badge,body.entering #kk,body.entering #tog{animation:reveal 1.2s .5s cubic-bezier(.16,.84,.3,1) both}
+
+/* ─── Countdown ─── */
+#countdown{position:fixed;left:50%;transform:translateX(-50%);bottom:54px;z-index:4;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink);opacity:0;transition:opacity .6s;pointer-events:none;text-align:center}
+#countdown.show{opacity:.6}
+#countdown b{color:var(--accent);font-weight:500}
+#countdown,#clock,#badge,#monitorBadge{transition:opacity .55s ease}
+body.idle:not(.popen) #countdown.show{opacity:.45!important}
+
 #monitorBadge{position:fixed;top:26px;right:80px;z-index:4;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink);opacity:.32;pointer-events:none}
 
 #kk{position:fixed;bottom:18px;right:24px;z-index:4;width:96px;opacity:.18;pointer-events:none;filter:brightness(0) invert(1)}
@@ -72,10 +97,20 @@ body.popen #tog .bar span:nth-child(1){top:50%;transform:translateY(-50%) rotate
 body.popen #tog .bar span:nth-child(2){opacity:0}
 body.popen #tog .bar span:nth-child(3){bottom:50%;transform:translateY(50%) rotate(-45deg)}
 
-#panel{position:fixed;top:0;right:0;height:100%;width:258px;z-index:5;background:rgba(10,9,8,.94);border-left:1px solid rgba(255,255,255,.09);backdrop-filter:blur(18px);transform:translateX(100%);transition:transform .5s cubic-bezier(.18,.8,.2,1);display:flex;flex-direction:column;padding:66px 18px 20px;gap:22px;overflow-y:auto}
+#panel{position:fixed;top:0;right:0;height:100%;width:264px;z-index:5;background:linear-gradient(160deg,rgba(14,12,10,.96),rgba(8,7,6,.94));border-left:1px solid rgba(255,255,255,.09);backdrop-filter:blur(18px);transform:translateX(100%);transition:transform .5s cubic-bezier(.18,.8,.2,1);display:flex;flex-direction:column;padding:66px 18px 20px;gap:20px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.14) transparent}
+#panel::-webkit-scrollbar{width:4px}
+#panel::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:2px}
 #panel.open{transform:translateX(0)}
 .grp{display:flex;flex-direction:column;gap:8px}
-.glbl{font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;color:rgba(240,237,230,.32)}
+.glbl{font-family:'DM Mono',monospace;font-size:8.5px;letter-spacing:.26em;text-transform:uppercase;color:rgba(240,237,230,.32);display:flex;align-items:center;gap:7px}
+.glbl::before{content:'';width:8px;height:1px;background:var(--accent);opacity:.7;flex-shrink:0}
+.tgl-row{display:flex;align-items:center;justify-content:space-between;padding:2px 0}
+.tgl-row label{font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.1em;color:rgba(240,237,230,.45);cursor:pointer}
+.tgl{position:relative;width:30px;height:15px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.14);cursor:pointer;transition:.25s;flex-shrink:0}
+.tgl::after{content:'';position:absolute;top:2px;left:2px;width:9px;height:9px;background:rgba(240,237,230,.5);transition:.25s}
+.tgl.on{background:rgba(210,67,23,.32);border-color:rgba(210,67,23,.55)}
+.tgl.on::after{left:16px;background:var(--ink)}
+input[type=time]{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--ink);font-family:'DM Mono',monospace;font-size:11px;padding:6px 8px;flex:1;outline:none;color-scheme:dark}
 .strip{display:flex;flex-direction:column;gap:1px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07)}
 .strip button,.seg button{background:transparent;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.04em;color:rgba(240,237,230,.5);transition:.2s;pointer-events:auto}
 .strip button{text-align:left;padding:8px 11px;display:flex;justify-content:space-between;align-items:center}
@@ -119,6 +154,9 @@ body.idle:not(.popen) #clock,body.idle:not(.popen) #badge,body.idle:not(.popen) 
 </head>
 <body>
 <canvas id="gl"></canvas>
+<div id="vignette"></div>
+<div id="grain"></div>
+<div id="countdown"></div>
 <div id="clock"></div>
 <div id="badge"><span class="dot"></span><span>Away</span></div>
 
@@ -140,6 +178,7 @@ body.idle:not(.popen) #clock,body.idle:not(.popen) #badge,body.idle:not(.popen) 
   <div class="grp">
     <div class="glbl">Presets</div>
     <div class="preset-row" id="presetList"></div>
+    <button class="abtn" id="savePresetBtn" style="margin-top:2px">Save current as mine</button>
   </div>
   <div class="grp">
     <div class="glbl">Shader</div>
@@ -171,7 +210,24 @@ body.idle:not(.popen) #clock,body.idle:not(.popen) #badge,body.idle:not(.popen) 
       <button data-a="a-breathe">Breath</button>
       <button data-a="a-wobble">Wobble</button>
       <button data-a="a-chroma">Chroma</button>
+      <button data-a="a-fade">Fade</button>
+      <button data-a="a-type">Type</button>
+      <button data-a="a-flicker">Flickr</button>
+      <button data-a="a-swing">Swing</button>
     </div>
+  </div>
+  <div class="grp">
+    <div class="glbl">Atmosphere</div>
+    <div class="tgl-row"><label for="fxGrain">Film grain</label><div class="tgl on" id="fxGrain"></div></div>
+    <div class="tgl-row"><label for="fxVig">Vignette</label><div class="tgl on" id="fxVig"></div></div>
+  </div>
+  <div class="grp">
+    <div class="glbl">Back At</div>
+    <div class="sz-row">
+      <input type="time" id="backAt">
+      <button id="backAtClr" class="sz-rst" title="Clear">&#215;</button>
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:8px;color:rgba(240,237,230,.3);line-height:1.6">Shows a live countdown under the message on both monitors.</div>
   </div>
   <div class="grp">
     <div class="glbl">Text Size</div>
@@ -270,6 +326,8 @@ try{
     if(type==='epoch'){ sharedEpoch = data.epoch; }
     if(type==='speed'){ tickerSpeed = data.speed; }
     if(type==='tempo'){ sharedEpoch = data.epoch; tickerSpeed = data.speed; const spdR=document.getElementById('spdR'); const spdVal=document.getElementById('spdVal'); if(spdR){spdR.value=data.speed;spdVal.textContent=Math.round(data.speed);} }
+    if(type==='backat'){ backAtTime = data.t || ''; const inp=document.getElementById('backAt'); if(inp) inp.value = backAtTime; updateCountdown(); }
+    if(type==='fx'){ applyFx(data.grain, data.vignette, false); }
     if(type==='hello'){
       // a sibling came online — re-publish our state
       publishWidth();
@@ -431,19 +489,54 @@ function loop(){
 }
 requestAnimationFrame(loop);
 
-function tick(){const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function tick(){const d=new Date();document.getElementById('clock').textContent=d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});updateCountdown();}
+
+/* ─────── Back-at countdown ─────── */
+let backAtTime = LS.get('away_backat','');
+function updateCountdown(){
+  const el = document.getElementById('countdown');
+  if(!backAtTime){ el.classList.remove('show'); return; }
+  const [hh,mm] = backAtTime.split(':').map(Number);
+  const now = new Date();
+  const target = new Date(now); target.setHours(hh,mm,0,0);
+  let diff = target - now;
+  if(diff < -12*3600e3){ target.setDate(target.getDate()+1); diff = target - now; }
+  const tstr = target.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  if(diff <= 0){ el.innerHTML = 'Back <b>any moment now</b>'; }
+  else {
+    const h = Math.floor(diff/3600e3), m = Math.floor(diff%3600e3/60e3), s = Math.floor(diff%60e3/1e3);
+    const left = h>0 ? h+'h '+m+'m' : m>0 ? m+'m '+String(s).padStart(2,'0')+'s' : s+'s';
+    el.innerHTML = 'Back at <b>'+tstr+'</b> &nbsp;&middot;&nbsp; '+left;
+  }
+  el.classList.add('show');
+}
 tick();setInterval(tick,1000);
 
 function stopAnims(){clearInterval(glitchTimer);clearInterval(glitchInner);clearInterval(typeTimer);glitchTimer=glitchInner=typeTimer=null;msg.classList.remove('glitching');if(curAnim==='a-type'||curAnim==='a-glitch')msg.textContent=origText;}
 
 function runGlitch(){const chars='!<>-_\\/[]{}=+*^?#§±~';function scramble(){clearInterval(glitchInner);let i=0;glitchInner=setInterval(()=>{msg.textContent=origText.split('').map((_,j)=>{if(j<i)return origText[j];return chars[Math.floor(Math.random()*chars.length)];}).join('');if(++i>origText.length){clearInterval(glitchInner);glitchInner=null;msg.textContent=origText;}},52);}scramble();glitchTimer=setInterval(scramble,3000+Math.random()*1600);}
 
+function runType(){
+  let phase=0,i=0; // 0 typing, 1 holding, 2 deleting
+  clearInterval(typeTimer);
+  typeTimer=setInterval(()=>{
+    if(phase===0){ i++; msg.textContent=origText.slice(0,i)+'_'; if(i>=origText.length){phase=1;i=0;msg.textContent=origText;} }
+    else if(phase===1){ if(++i>42){phase=2;i=origText.length;} }
+    else { i--; msg.textContent=origText.slice(0,Math.max(0,i))+'_'; if(i<=0){phase=0;i=0;} }
+  },80);
+}
+
+function startJsAnim(a){
+  if(a==='a-glitch'){origText=msg.textContent;runGlitch();}
+  if(a==='a-type'){origText=msg.textContent;runType();}
+}
+
 function setAnim(a){
   stopAnims();
   if(curAnim) document.body.classList.remove(curAnim);
   curAnim=a;
   if(a)document.body.classList.add(a);
-  if(a==='a-glitch'){origText=msg.textContent;runGlitch();}
+  startJsAnim(a);
   broadcast('animation',{anim:a});
 }
 
@@ -460,7 +553,7 @@ function setScroll(s){
   broadcast('scroll',{scroll:s, epoch: sharedEpoch});
 }
 
-function applyAnimFromSync(data){stopAnims();if(curAnim)document.body.classList.remove(curAnim);curAnim=data.anim;if(data.anim)document.body.classList.add(data.anim);if(data.anim==='a-glitch'){origText=msg.textContent;runGlitch();}}
+function applyAnimFromSync(data){stopAnims();if(curAnim)document.body.classList.remove(curAnim);curAnim=data.anim;if(data.anim)document.body.classList.add(data.anim);startJsAnim(data.anim);}
 
 function applyScrollFromSync(data){
   if(curScroll) document.body.classList.remove(curScroll);
@@ -719,6 +812,58 @@ addEventListener('keydown', e=>{
   }
   bumpIdle();
 });
+
+/* ─────── Atmosphere FX ─────── */
+function applyFx(grain, vignette, doBroadcast){
+  document.body.classList.toggle('fx-grain', !!grain);
+  document.body.classList.toggle('fx-vignette', !!vignette);
+  document.getElementById('fxGrain').classList.toggle('on', !!grain);
+  document.getElementById('fxVig').classList.toggle('on', !!vignette);
+  LS.set('away_fx_grain', grain?'1':'0');
+  LS.set('away_fx_vig', vignette?'1':'0');
+  if(doBroadcast) broadcast('fx',{grain:!!grain, vignette:!!vignette});
+}
+document.getElementById('fxGrain').onclick=()=>applyFx(!document.body.classList.contains('fx-grain'), document.body.classList.contains('fx-vignette'), true);
+document.getElementById('fxVig').onclick=()=>applyFx(document.body.classList.contains('fx-grain'), !document.body.classList.contains('fx-vignette'), true);
+applyFx(LS.get('away_fx_grain','1')==='1', LS.get('away_fx_vig','1')==='1', false);
+
+/* ─────── Back-at input ─────── */
+const backAtInp = document.getElementById('backAt');
+backAtInp.value = backAtTime;
+backAtInp.oninput = ()=>{ backAtTime = backAtInp.value; LS.set('away_backat', backAtTime); broadcast('backat',{t:backAtTime}); updateCountdown(); };
+document.getElementById('backAtClr').onclick = ()=>{ backAtTime=''; backAtInp.value=''; LS.set('away_backat',''); broadcast('backat',{t:''}); updateCountdown(); };
+
+/* ─────── Save current as custom preset ─────── */
+function captureConfig(){
+  const fontOn = [...fontList.children].findIndex(c=>c.classList.contains('on'));
+  return {
+    name:'Mine',
+    shader: SHADERS[cur].name,
+    font: FONTS[Math.max(0,fontOn)][0],
+    anim: curAnim, scroll: curScroll,
+    ink: document.getElementById('cInk').value,
+    accent: document.getElementById('cAcc').value,
+    tint: document.getElementById('cShd').value,
+    speed: tickerSpeed,
+  };
+}
+function ensureMineButton(cfg){
+  let b = [...presetList.children].find(x=>x.textContent==='Mine');
+  if(!b){ b = document.createElement('button'); b.textContent='Mine'; presetList.appendChild(b); }
+  b.style.color = 'var(--accent)';
+  b.onclick = ()=>applyPreset(cfg);
+}
+document.getElementById('savePresetBtn').onclick = ()=>{
+  const cfg = captureConfig();
+  LS.set('away_mypreset', JSON.stringify(cfg));
+  ensureMineButton(cfg);
+  showStatus('Saved your preset');
+};
+try{ const saved = localStorage.getItem('away_mypreset'); if(saved) ensureMineButton(JSON.parse(saved)); }catch(e){}
+
+/* ─────── Entrance reveal ─────── */
+document.body.classList.add('entering');
+setTimeout(()=>document.body.classList.remove('entering'), 2400);
 
 /* ─────── Idle UI hide ─────── */
 let idleT=null;
