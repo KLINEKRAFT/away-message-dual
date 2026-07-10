@@ -12,6 +12,7 @@ html,body{height:100%;overflow:hidden;background:#000}
 body{font-family:var(--font);-webkit-font-smoothing:antialiased;color:var(--ink)}
 
 #gl{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block}
+#pgl{position:fixed;inset:0;width:100%;height:100%;z-index:1;display:block;pointer-events:none}
 
 #clock{position:fixed;top:26px;left:30px;z-index:4;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:.14em;color:var(--ink);opacity:.55;pointer-events:none}
 
@@ -31,6 +32,8 @@ body.locked #msg:hover{background:transparent}
 .ticker-item{display:inline-block;padding-right:1.2em;flex-shrink:0}
 body.scroll-left #tickerTrack,body.scroll-right #tickerTrack{display:block}
 body.scroll-left #msg3d,body.scroll-right #msg3d{visibility:hidden;pointer-events:none}
+body.ptext:not(.scroll-left):not(.scroll-right) #msg{opacity:.12;transition:opacity .8s}
+#msg{transition:opacity .8s}
 
 @keyframes shimmer{from{background-position:200% center}to{background-position:-200% center}}
 body.a-shimmer #msg,body.a-shimmer .ticker-item{background:linear-gradient(90deg,var(--ink) 0%,var(--ink) 36%,rgba(255,255,255,.95) 50%,var(--ink) 64%,var(--ink) 100%) center/200% auto;-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;animation:shimmer 3.6s linear infinite}
@@ -154,6 +157,7 @@ body.idle:not(.popen) #clock,body.idle:not(.popen) #badge,body.idle:not(.popen) 
 </head>
 <body>
 <canvas id="gl"></canvas>
+<canvas id="pgl"></canvas>
 <div id="vignette"></div>
 <div id="grain"></div>
 <div id="countdown"></div>
@@ -217,6 +221,26 @@ body.idle:not(.popen) #clock,body.idle:not(.popen) #badge,body.idle:not(.popen) 
     </div>
   </div>
   <div class="grp">
+    <div class="glbl">Particles</div>
+    <div class="seg seg3" id="pmodeSeg">
+      <button class="on" data-p="off">Off</button>
+      <button data-p="swarm">Swarm</button>
+      <button data-p="text">Text</button>
+      <button data-p="sphere">Sphere</button>
+      <button data-p="torus">Torus</button>
+      <button data-p="helix">Helix</button>
+      <button data-p="galaxy">Galaxy</button>
+      <button data-p="wave">Wave</button>
+      <button data-p="cycle">Cycle</button>
+    </div>
+    <div class="seg seg3" id="pdenSeg">
+      <button data-d="lo">Lo</button>
+      <button class="on" data-d="mid">Mid</button>
+      <button data-d="hi">Hi</button>
+    </div>
+    <div style="font-family:'DM Mono',monospace;font-size:8px;color:rgba(240,237,230,.3);line-height:1.6">Text mode draws the away message in particles. Cycle morphs through every shape.</div>
+  </div>
+  <div class="grp">
     <div class="glbl">Atmosphere</div>
     <div class="tgl-row"><label for="fxGrain">Film grain</label><div class="tgl on" id="fxGrain"></div></div>
     <div class="tgl-row"><label for="fxVig">Vignette</label><div class="tgl on" id="fxVig"></div></div>
@@ -261,7 +285,7 @@ body.idle:not(.popen) #clock,body.idle:not(.popen) #badge,body.idle:not(.popen) 
       <b>F</b> fullscreen &nbsp; <b>M</b> menu &nbsp; <b>L</b> lock<br>
       <b>Space</b> scroll &nbsp; <b>&larr;/&rarr;</b> speed<br>
       <b>P</b> preset &nbsp; <b>B</b> shader &nbsp; <b>N</b> anim &nbsp; <b>T</b> font<br>
-      <b>1&ndash;9</b> jump to shader
+      <b>X</b> particles &nbsp; <b>1&ndash;9</b> jump to shader
     </div>
   </div>
   <div class="cred">KLINEKRAFT &nbsp;&#xB7;&nbsp; Away v3 Dual<br>Less but better</div>
@@ -291,6 +315,10 @@ else { monitor1Width = innerWidth; monitor1Height = innerHeight; LS.set('away_m1
 let sharedEpoch = parseFloat(LS.get('away_epoch', '0'));
 if(!sharedEpoch){ sharedEpoch = Date.now(); LS.set('away_epoch', sharedEpoch); }
 
+// Stable epoch for shader/particle time — never reset, so visuals never jump.
+let visualEpoch = parseFloat(LS.get('away_vepoch', '0'));
+if(!visualEpoch){ visualEpoch = Date.now(); LS.set('away_vepoch', visualEpoch); }
+
 let tickerSpeed = parseFloat(LS.get('away_speed', '140'));
 
 function worldDims(){
@@ -306,7 +334,7 @@ try{
   bc = new BroadcastChannel('away_dual_sync');
   bc.onmessage = (e)=>{
     const {type,data} = e.data;
-    if(type==='message'){ document.getElementById('msg').textContent = data.text; rebuildTicker(); }
+    if(type==='message'){ document.getElementById('msg').textContent = data.text; rebuildTicker(); pTextDirty=true; }
     if(type==='animation') applyAnimFromSync(data);
     if(type==='scroll') applyScrollFromSync(data);
     if(type==='style') applyStyleFromSync(data);
@@ -317,6 +345,7 @@ try{
       if(data.monitor===1){ monitor1Width = data.w; monitor1Height = data.h; }
       else { monitor2Width = data.w; monitor2Height = data.h; }
       rebuildTicker();
+      pWorldChanged();
     }
     if(type==='click'){
       ckX = data.x; ckY = data.y;
@@ -328,6 +357,8 @@ try{
     if(type==='tempo'){ sharedEpoch = data.epoch; tickerSpeed = data.speed; const spdR=document.getElementById('spdR'); const spdVal=document.getElementById('spdVal'); if(spdR){spdR.value=data.speed;spdVal.textContent=Math.round(data.speed);} }
     if(type==='backat'){ backAtTime = data.t || ''; const inp=document.getElementById('backAt'); if(inp) inp.value = backAtTime; updateCountdown(); }
     if(type==='fx'){ applyFx(data.grain, data.vignette, false); }
+    if(type==='particles'){ setPMode(data.mode, data.morphStart, true); }
+    if(type==='pdensity'){ setPDensity(data.d, true); }
     if(type==='hello'){
       // a sibling came online — re-publish our state
       publishWidth();
@@ -338,6 +369,8 @@ try{
         broadcast('scroll',{scroll: curScroll, epoch: sharedEpoch});
         broadcast('animation',{anim: curAnim});
         broadcast('shader',{index: cur});
+        broadcast('particles',{mode: pMode, morphStart: pMorphStart});
+        broadcast('pdensity',{d: LS.get('away_pdensity','mid')});
         const cs = getComputedStyle(msg);
         broadcast('font',{font: cs.fontFamily});
       }
@@ -440,6 +473,275 @@ addEventListener('pointerdown',e=>{
 let sCol=[.81,.79,.75];
 const T0=performance.now();
 
+/* ═══════════ 3D PARTICLE ENGINE ═══════════
+   All motion is computed on the GPU as a pure function of shared
+   time + per-particle seeds, so every window derives identical
+   world-space positions and the cloud crosses the seam seamlessly. */
+const pCanvas=document.getElementById('pgl');
+const pg=pCanvas.getContext('webgl',{antialias:false,alpha:true,depth:false});
+
+const P_VERT=`
+attribute vec3 aA;attribute vec3 aB;attribute vec3 aSeed;
+uniform float uT;uniform float uMorph;uniform float uFree;
+uniform vec2 uWorld;uniform vec2 uOff;uniform vec2 uRes;uniform float uDPR;
+uniform vec2 uMouse;uniform vec3 uCk;uniform float uSpin;uniform float uSway;uniform float uSize;
+varying float vDepth;varying float vTw;
+vec3 freePos(vec3 s,float t){
+  float sp=.13+s.x*.22;
+  vec3 p;
+  p.x=.5+sin(t*sp+s.y*6.283)*(.3+.12*sin(t*.05+s.z*6.283))+sin(t*.11)*.13;
+  p.y=.5+sin(t*sp*1.31+s.z*6.283)*(.26+.1*cos(t*.07+s.x*6.283))+cos(t*.08)*.09;
+  p.z=sin(t*sp*.83+s.x*6.283)*.5;
+  return vec3(p.x*uWorld.x,p.y*uWorld.y,p.z*uWorld.y*.55);
+}
+void main(){
+  float stag=clamp((uMorph-aSeed.z*.35)/.65,0.,1.);
+  float e=stag*stag*(3.-2.*stag);
+  vec3 shape=mix(aA,aB,e);
+  shape.x+=sin(uT*(.5+aSeed.x)+aSeed.y*40.)*4.;
+  shape.y+=cos(uT*(.4+aSeed.y)+aSeed.z*40.)*4.;
+  shape.z+=sin(uT*(.6+aSeed.z)+aSeed.x*40.)*7.;
+  vec3 pos=mix(shape,freePos(aSeed,uT),uFree);
+  vec2 c=uWorld*.5;
+  float ang=uT*uSpin+sin(uT*.42)*uSway;
+  vec3 q=vec3(pos.x-c.x,pos.y-c.y,pos.z);
+  float ca=cos(ang),sa=sin(ang);
+  float rx=q.x*ca-q.z*sa;
+  float rz=q.x*sa+q.z*ca;
+  float f=1.15*uWorld.y+.35*uWorld.x;
+  float per=f/(f+rz);
+  vec2 sp2=vec2(rx*per+c.x,q.y*per+c.y);
+  vec2 dm=sp2-uMouse;float dl=length(dm);
+  sp2+=(dm/max(dl,.001))*exp(-dl/170.)*54.;
+  vec2 ckp=uCk.xy*uWorld;float cd=distance(sp2,ckp);
+  sp2+=((sp2-ckp)/max(cd,.001))*sin(cd*.022-uCk.z*6.)*exp(-cd*.0022)*exp(-uCk.z*.9)*26.;
+  vec2 local=sp2-uOff;
+  vec2 ndc=(local/uRes)*2.-1.;ndc.y=-ndc.y;
+  gl_Position=vec4(ndc,0.,1.);
+  gl_PointSize=max(1.,(1.1+2.3*aSeed.y)*per*per*uSize*uDPR);
+  vDepth=clamp(per*per,0.,1.);
+  vTw=.5+.5*sin(uT*(1.+aSeed.y*3.)+aSeed.x*40.);
+}`;
+const P_FRAG=`precision mediump float;
+varying float vDepth;varying float vTw;
+uniform vec3 uC1;uniform vec3 uC2;
+void main(){
+  vec2 uv=gl_PointCoord*2.-1.;float d=dot(uv,uv);
+  if(d>1.)discard;
+  float a=exp(-d*2.4)*(.3+.7*vTw)*mix(.28,1.,vDepth);
+  vec3 col=mix(uC2,uC1,vDepth);
+  gl_FragColor=vec4(col*a,a);
+}`;
+
+function pmk(type,src){const s=pg.createShader(type);pg.shaderSource(s,src);pg.compileShader(s);if(!pg.getShaderParameter(s,pg.COMPILE_STATUS))console.error(pg.getShaderInfoLog(s));return s;}
+const pProg=(()=>{const p=pg.createProgram();pg.attachShader(p,pmk(pg.VERTEX_SHADER,P_VERT));pg.attachShader(p,pmk(pg.FRAGMENT_SHADER,P_FRAG));pg.linkProgram(p);return p;})();
+const pLoc={
+  aA:pg.getAttribLocation(pProg,'aA'),aB:pg.getAttribLocation(pProg,'aB'),aSeed:pg.getAttribLocation(pProg,'aSeed'),
+  uT:pg.getUniformLocation(pProg,'uT'),uMorph:pg.getUniformLocation(pProg,'uMorph'),uFree:pg.getUniformLocation(pProg,'uFree'),
+  uWorld:pg.getUniformLocation(pProg,'uWorld'),uOff:pg.getUniformLocation(pProg,'uOff'),uRes:pg.getUniformLocation(pProg,'uRes'),
+  uDPR:pg.getUniformLocation(pProg,'uDPR'),uMouse:pg.getUniformLocation(pProg,'uMouse'),uCk:pg.getUniformLocation(pProg,'uCk'),
+  uSpin:pg.getUniformLocation(pProg,'uSpin'),uSway:pg.getUniformLocation(pProg,'uSway'),uSize:pg.getUniformLocation(pProg,'uSize'),
+  uC1:pg.getUniformLocation(pProg,'uC1'),uC2:pg.getUniformLocation(pProg,'uC2'),
+};
+const bufA=pg.createBuffer(),bufB=pg.createBuffer(),bufSeed=pg.createBuffer();
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+
+const P_DENS={lo:3000,mid:9000,hi:16000};
+let pCount=0,pSeeds=null,pTargA=null,pTargB=null;
+let pMode='off',pMorphStart=0,pFreeFrom=0,pFreeTo=0,pFreeStart=0;
+let pCycleIdx=-1,pTextDirty=true;
+const P_CYCLE=['sphere','torus','helix','galaxy','wave','text'];
+
+function pAlloc(n){
+  pCount=n;
+  pSeeds=new Float32Array(n*3);
+  const r=mulberry32(1234567);
+  for(let i=0;i<n*3;i++)pSeeds[i]=r();
+  pTargA=new Float32Array(n*3);
+  pTargB=new Float32Array(n*3);
+  pg.bindBuffer(pg.ARRAY_BUFFER,bufSeed);pg.bufferData(pg.ARRAY_BUFFER,pSeeds,pg.STATIC_DRAW);
+  pg.bindBuffer(pg.ARRAY_BUFFER,bufA);pg.bufferData(pg.ARRAY_BUFFER,pTargA,pg.DYNAMIC_DRAW);
+  pg.bindBuffer(pg.ARRAY_BUFFER,bufB);pg.bufferData(pg.ARRAY_BUFFER,pTargB,pg.DYNAMIC_DRAW);
+}
+
+/* ── deterministic shape generators (world px, y-down) ── */
+function genShape(kind,n){
+  const wd=worldDims();
+  const cx=wd.w/2,cy=wd.h/2;
+  const R=Math.min(wd.h*.36,wd.w*.22);
+  const out=new Float32Array(n*3);
+  const r=mulberry32(kind.length*7919+42);
+  const GA=Math.PI*(3-Math.sqrt(5));
+  for(let i=0;i<n;i++){
+    let x=cx,y=cy,z=0;
+    if(kind==='sphere'){
+      const k=i+.5,ph=Math.acos(1-2*k/n),th=GA*i;
+      x=cx+R*Math.sin(ph)*Math.cos(th);y=cy+R*Math.sin(ph)*Math.sin(th)*.92;z=R*Math.cos(ph);
+    }else if(kind==='torus'){
+      const u=(i/n)*Math.PI*2*7.13,v=r()*Math.PI*2,r2=R*.34;
+      x=cx+(R*.78+r2*Math.cos(v))*Math.cos(u);
+      y=cy+(R*.78+r2*Math.cos(v))*Math.sin(u)*.6;
+      z=r2*Math.sin(v)+(R*.78+r2*Math.cos(v))*Math.sin(u)*.5;
+    }else if(kind==='helix'){
+      const strand=i%3,tt=i/n,ang=tt*Math.PI*6+strand*(Math.PI*2/3);
+      x=cx+(tt-.5)*wd.w*.72;
+      y=cy+Math.sin(ang)*wd.h*.2+(r()-.5)*8;
+      z=Math.cos(ang)*wd.h*.2+(r()-.5)*8;
+    }else if(kind==='galaxy'){
+      const arm=i%3,tt=Math.pow(r(),.6),ang=tt*4.4+arm*(Math.PI*2/3)+(r()-.5)*.5*(1-tt);
+      const rad=tt*R*1.18;
+      x=cx+Math.cos(ang)*rad;y=cy+Math.sin(ang)*rad*.55;
+      z=Math.sin(ang)*rad*.75+(r()-.5)*R*.12*(1-tt);
+    }else if(kind==='wave'){
+      const cols=Math.ceil(Math.sqrt(n*wd.w/wd.h)),rows=Math.ceil(n/cols);
+      const gx=i%cols,gy=Math.floor(i/cols);
+      x=(gx+.5)/cols*wd.w;y=cy+((gy+.5)/rows-.5)*wd.h*.5;
+      z=Math.sin(gx/cols*Math.PI*4)*Math.cos(gy/rows*Math.PI*2)*wd.h*.14;
+    }
+    out[i*3]=x;out[i*3+1]=y;out[i*3+2]=z;
+  }
+  return out;
+}
+
+function genText(n){
+  const wd=worldDims();
+  const scale=Math.min(1,900/wd.w);
+  const cw=Math.max(64,Math.round(wd.w*scale)),ch=Math.max(64,Math.round(wd.h*scale));
+  const cv=document.createElement('canvas');cv.width=cw;cv.height=ch;
+  const c2=cv.getContext('2d',{willReadFrequently:true});
+  const mEl=document.getElementById('msg');
+  const txt=(mEl.textContent||'').trim()||'AWAY';
+  const fam=getComputedStyle(mEl).fontFamily;
+  let fs=ch*.5;
+  c2.font='600 '+fs+'px '+fam;
+  const tw=c2.measureText(txt).width;
+  if(tw>cw*.88){fs*=cw*.88/tw;c2.font='600 '+fs+'px '+fam;}
+  c2.fillStyle='#fff';c2.textAlign='center';c2.textBaseline='middle';
+  c2.fillText(txt,cw/2,ch/2);
+  const img=c2.getImageData(0,0,cw,ch).data;
+  const pts=[];
+  for(let y=0;y<ch;y++)for(let x=0;x<cw;x++){
+    if(img[(y*cw+x)*4+3]>128)pts.push(x,y);
+  }
+  const out=new Float32Array(n*3);
+  if(!pts.length)return genShape('sphere',n);
+  const r=mulberry32(99173);
+  for(let i=0;i<n;i++){
+    const k=Math.floor(r()*(pts.length/2))*2;
+    out[i*3]=pts[k]/scale+(r()-.5)*4;
+    out[i*3+1]=pts[k+1]/scale+(r()-.5)*4;
+    out[i*3+2]=(r()-.5)*30;
+  }
+  return out;
+}
+
+function pTargets(kind){return kind==='text'?genText(pCount):genShape(kind,pCount);}
+
+function pSetTargets(arr,morphStart){
+  pTargA.set(pTargB);
+  pTargB.set(arr);
+  pMorphStart=morphStart;
+  pg.bindBuffer(pg.ARRAY_BUFFER,bufA);pg.bufferData(pg.ARRAY_BUFFER,pTargA,pg.DYNAMIC_DRAW);
+  pg.bindBuffer(pg.ARRAY_BUFFER,bufB);pg.bufferData(pg.ARRAY_BUFFER,pTargB,pg.DYNAMIC_DRAW);
+}
+
+function pResize(){pCanvas.width=innerWidth*DPR;pCanvas.height=innerHeight*DPR;pCanvas.style.width=innerWidth+'px';pCanvas.style.height=innerHeight+'px';}
+addEventListener('resize',pResize);pResize();
+
+const P_MORPH_MS=1700;
+function particlesFrame(t){
+  if(pMode==='off'){pg.clearColor(0,0,0,0);pg.clear(pg.COLOR_BUFFER_BIT);return;}
+  const nowMs=Date.now();
+  if(pMode==='cycle'){
+    const idx=Math.floor((nowMs-visualEpoch)/9000)%P_CYCLE.length;
+    if(idx!==pCycleIdx){
+      pCycleIdx=idx;
+      pSetTargets(pTargets(P_CYCLE[idx]),visualEpoch+Math.floor((nowMs-visualEpoch)/9000)*9000);
+    }
+  }
+  if(pTextDirty&&(pMode==='text'||(pMode==='cycle'&&P_CYCLE[pCycleIdx]==='text'))){
+    pTextDirty=false;
+    pSetTargets(genText(pCount),pMorphStart);
+  }
+  const morph=Math.min(1,(nowMs-pMorphStart)/P_MORPH_MS);
+  const freeP=Math.min(1,(nowMs-pFreeStart)/P_MORPH_MS);
+  const free=pFreeFrom+(pFreeTo-pFreeFrom)*(freeP*freeP*(3-2*freeP));
+  const wd=worldDims();
+  const isText=pMode==='text'||(pMode==='cycle'&&P_CYCLE[pCycleIdx]==='text');
+  pg.viewport(0,0,pCanvas.width,pCanvas.height);
+  pg.clearColor(0,0,0,0);pg.clear(pg.COLOR_BUFFER_BIT);
+  pg.useProgram(pProg);
+  pg.enable(pg.BLEND);pg.blendFunc(pg.SRC_ALPHA,pg.ONE);
+  pg.bindBuffer(pg.ARRAY_BUFFER,bufA);pg.enableVertexAttribArray(pLoc.aA);pg.vertexAttribPointer(pLoc.aA,3,pg.FLOAT,false,0,0);
+  pg.bindBuffer(pg.ARRAY_BUFFER,bufB);pg.enableVertexAttribArray(pLoc.aB);pg.vertexAttribPointer(pLoc.aB,3,pg.FLOAT,false,0,0);
+  pg.bindBuffer(pg.ARRAY_BUFFER,bufSeed);pg.enableVertexAttribArray(pLoc.aSeed);pg.vertexAttribPointer(pLoc.aSeed,3,pg.FLOAT,false,0,0);
+  const sharedT=(nowMs-visualEpoch)/1000;
+  pg.uniform1f(pLoc.uT,sharedT);
+  pg.uniform1f(pLoc.uMorph,morph);
+  pg.uniform1f(pLoc.uFree,free);
+  pg.uniform2f(pLoc.uWorld,wd.w,wd.h);
+  pg.uniform2f(pLoc.uOff,monitorOffsetX(),0);
+  pg.uniform2f(pLoc.uRes,innerWidth,innerHeight);
+  pg.uniform1f(pLoc.uDPR,DPR);
+  pg.uniform2f(pLoc.uMouse,mouse.x*wd.w,(1-mouse.y)*wd.h);
+  const age=performance.now()/1000-ckT;
+  pg.uniform3f(pLoc.uCk,ckX,1-ckY,Math.min(age,8));
+  pg.uniform1f(pLoc.uSpin,(isText||pMode==='wave')?0:.22);
+  pg.uniform1f(pLoc.uSway,isText?.05:(pMode==='wave'?.12:0));
+  pg.uniform1f(pLoc.uSize,3.4);
+  const acc=h2rgb(document.getElementById('cAcc').value);
+  const ink=h2rgb(document.getElementById('cInk').value);
+  pg.uniform3f(pLoc.uC1,ink[0],ink[1],ink[2]);
+  pg.uniform3f(pLoc.uC2,acc[0]*.85,acc[1]*.85,acc[2]*.85);
+  pg.drawArrays(pg.POINTS,0,pCount);
+}
+
+function setPMode(mode,morphStart,fromSync){
+  const prev=pMode;
+  pMode=mode;
+  pCycleIdx=-1;
+  const ms=morphStart||Date.now();
+  document.querySelectorAll('#pmodeSeg button').forEach(b=>b.classList.toggle('on',b.dataset.p===mode));
+  LS.set('away_pmode',mode);
+  const wasFree=prev==='swarm',isFree=mode==='swarm';
+  if(wasFree!==isFree){pFreeFrom=wasFree?1:0;pFreeTo=isFree?1:0;pFreeStart=ms;}
+  if(mode!=='off'&&mode!=='swarm'&&mode!=='cycle'){
+    pSetTargets(pTargets(mode),ms);
+  }
+  document.body.classList.toggle('ptext', mode==='text');
+  if(!fromSync)broadcast('particles',{mode,morphStart:ms});
+}
+
+function setPDensity(d,fromSync){
+  const n=P_DENS[d]||P_DENS.mid;
+  document.querySelectorAll('#pdenSeg button').forEach(b=>b.classList.toggle('on',b.dataset.d===d));
+  LS.set('away_pdensity',d);
+  pAlloc(n);
+  pCycleIdx=-1;
+  if(pMode!=='off'&&pMode!=='swarm'&&pMode!=='cycle')pSetTargets(pTargets(pMode),Date.now()-P_MORPH_MS);
+  if(!fromSync)broadcast('pdensity',{d});
+}
+
+/* world size changed → all world-space targets are stale */
+function pWorldChanged(){
+  pCycleIdx=-1;
+  pTextDirty=true;
+  if(pMode!=='off'&&pMode!=='swarm'&&pMode!=='cycle')pSetTargets(pTargets(pMode),Date.now()-P_MORPH_MS);
+  updateVignette();
+}
+
+/* vignette spans the combined world so it doesn't draw a seam per window */
+function updateVignette(){
+  const wd=worldDims(),off=monitorOffsetX();
+  const v=document.getElementById('vignette');
+  v.style.background='none';
+  v.style.backgroundImage='radial-gradient(ellipse at center,transparent 52%,rgba(0,0,0,.34) 100%)';
+  v.style.backgroundSize=wd.w+'px '+wd.h+'px';
+  v.style.backgroundPosition=(-off)+'px 0';
+  v.style.backgroundRepeat='no-repeat';
+}
+
 const msg3d=document.getElementById('msg3d');
 const msg=document.getElementById('msg');
 let rx=0,ry=0,trx=0,try_=0;
@@ -451,7 +753,8 @@ addEventListener('mouseleave',()=>{trx=0;try_=0;});
 
 function loop(){
   const now=performance.now();
-  const t=(now-T0)/1000;
+  // shared wall-clock time so both monitors render the same shader frame
+  const t=(Date.now()-visualEpoch)/1000;
   const age=now/1000-ckT;
 
   mouse.x+=(mouse.tx-mouse.x)*.065;
@@ -474,6 +777,7 @@ function loop(){
   gl.uniform3f(g.loc.ck,ckX,ckY,Math.min(age,8));
   gl.drawArrays(gl.TRIANGLES,0,3);
 
+  particlesFrame(t);
   updateTicker();
 
   const scrollOn=!!curScroll;
@@ -574,6 +878,7 @@ msg.addEventListener('input',()=>{
   origText=msg.textContent;
   LS.set('away_msg', msg.textContent);
   rebuildTicker();
+  pTextDirty=true;
   broadcast('message',{text:msg.textContent});
 });
 
@@ -747,8 +1052,8 @@ const PRESETS = [
   {name:'Terminal',  shader:'Grid Field',    font:'DM Mono',   anim:'a-chroma',  scroll:'scroll-left', ink:'#9bff9b', accent:'#00ff88', tint:'#0e2a18', speed:120},
   {name:'Zen',       shader:'Soft Noise',    font:'Cormorant', anim:'a-breathe', scroll:'',            ink:'#f5f0e3', accent:'#b4856a', tint:'#c2b8a3', speed:60},
   {name:'Arcade',    shader:'Liquid Chrome', font:'Bebas',     anim:'a-neon',    scroll:'scroll-left', ink:'#ffffff', accent:'#ff2080', tint:'#8090a8', speed:200},
-  {name:'Aurora',    shader:'Aurora',        font:'Outfit',    anim:'a-breathe', scroll:'',            ink:'#e6fff5', accent:'#5cffb0', tint:'#2a8870', speed:80},
-  {name:'Cosmos',    shader:'Starfield',     font:'Syne',      anim:'a-pulse',   scroll:'',            ink:'#f0ede6', accent:'#88aaff', tint:'#4a5a90', speed:100},
+  {name:'Aurora',    shader:'Aurora',        font:'Outfit',    anim:'a-breathe', scroll:'',            ink:'#e6fff5', accent:'#5cffb0', tint:'#2a8870', speed:80,  pmode:'swarm'},
+  {name:'Cosmos',    shader:'Starfield',     font:'Syne',      anim:'a-pulse',   scroll:'',            ink:'#f0ede6', accent:'#88aaff', tint:'#4a5a90', speed:100, pmode:'galaxy'},
   {name:'Script',    shader:'Soft Noise',    font:'Caveat',    anim:'a-fade',    scroll:'',            ink:'#fff4e0', accent:'#e89a4a', tint:'#d6b890', speed:90},
 ];
 
@@ -760,6 +1065,7 @@ function applyPreset(p){
   pickAnim(p.anim);
   setColors({ink:p.ink, accent:p.accent, shaderTint:p.tint});
   if(typeof p.speed==='number'){ setSpeed(p.speed); spdR.value=p.speed; spdVal.textContent=Math.round(p.speed); }
+  if(p.pmode!==undefined) setPMode(p.pmode);
   showStatus('Preset · '+p.name);
 }
 
@@ -803,6 +1109,7 @@ addEventListener('keydown', e=>{
   else if(k==='b'){ cycleShader(); }
   else if(k==='t'){ cycleFont(); }
   else if(k==='p'){ cyclePreset(); }
+  else if(k==='x'){ cyclePMode(); }
   else if(k===' '){ e.preventDefault(); cycleScroll(); }
   else if(k==='arrowleft'){ e.preventDefault(); const v=Math.max(15, tickerSpeed-20); setSpeed(v); spdR.value=v; spdVal.textContent=Math.round(v); }
   else if(k==='arrowright'){ e.preventDefault(); const v=Math.min(400, tickerSpeed+20); setSpeed(v); spdR.value=v; spdVal.textContent=Math.round(v); }
@@ -812,6 +1119,20 @@ addEventListener('keydown', e=>{
   }
   bumpIdle();
 });
+
+/* ─────── Particles UI ─────── */
+document.querySelectorAll('#pmodeSeg button').forEach(b=>{
+  b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setPMode(b.dataset.p);});
+});
+document.querySelectorAll('#pdenSeg button').forEach(b=>{
+  b.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();setPDensity(b.dataset.d);});
+});
+setPDensity(LS.get('away_pdensity','mid'), true);
+setPMode(LS.get('away_pmode','off'), Date.now()-P_MORPH_MS, true);
+document.fonts?.ready?.then(()=>{ pTextDirty=true; });
+
+const P_MODES=['off','swarm','text','sphere','torus','helix','galaxy','wave','cycle'];
+function cyclePMode(){ setPMode(P_MODES[(P_MODES.indexOf(pMode)+1)%P_MODES.length]); showStatus('Particles · '+pMode); }
 
 /* ─────── Atmosphere FX ─────── */
 function applyFx(grain, vignette, doBroadcast){
@@ -845,6 +1166,7 @@ function captureConfig(){
     accent: document.getElementById('cAcc').value,
     tint: document.getElementById('cShd').value,
     speed: tickerSpeed,
+    pmode: pMode,
   };
 }
 function ensureMineButton(cfg){
@@ -882,17 +1204,17 @@ bumpIdle();
     [...bgList.children].forEach((c,i)=>c.classList.toggle('on', i===cur));
   }
   publishWidth();
-  addEventListener('resize', ()=>{ publishWidth(); rebuildTicker(); });
+  addEventListener('resize', ()=>{ publishWidth(); rebuildTicker(); pWorldChanged(); });
   addEventListener('storage', (ev)=>{
-    if(ev.key==='away_m1_width'){ monitor1Width = parseFloat(ev.newValue); rebuildTicker(); }
-    if(ev.key==='away_m2_width'){ monitor2Width = parseFloat(ev.newValue); rebuildTicker(); }
+    if(ev.key==='away_m1_width'){ monitor1Width = parseFloat(ev.newValue); rebuildTicker(); pWorldChanged(); }
+    if(ev.key==='away_m2_width'){ monitor2Width = parseFloat(ev.newValue); rebuildTicker(); pWorldChanged(); }
     if(ev.key==='away_m1_height'){ monitor1Height = parseFloat(ev.newValue); }
     if(ev.key==='away_m2_height'){ monitor2Height = parseFloat(ev.newValue); }
     if(ev.key==='away_msg' && ev.newValue !== msg.textContent){ msg.textContent = ev.newValue; rebuildTicker(); }
     if(ev.key==='away_epoch'){ sharedEpoch = parseFloat(ev.newValue); }
   });
   // wait a tick so layout is ready then build
-  requestAnimationFrame(()=>{ syncTickerStyle(); rebuildTicker(); broadcast('hello',{}); });
+  requestAnimationFrame(()=>{ syncTickerStyle(); rebuildTicker(); updateVignette(); broadcast('hello',{}); });
   // when this window closes (the secondary), clear its width so the primary stops offsetting
   if(isMonitor2){
     addEventListener('beforeunload', ()=>{
