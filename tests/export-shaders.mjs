@@ -1,0 +1,15 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import {EXTRA_SHADERS} from '../effects.js';
+const out=process.argv[2]||'/tmp/away-qa';
+fs.mkdirSync(out,{recursive:true});
+const s=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');
+const original=Function('return '+s.match(/const SHADERS=(\[[\s\S]*?\n\]);/)[1])();
+const common=s.match(/const COMMON = `([\s\S]*?)`;/)[1];
+const vertex=s.match(/const VERT = `([\s\S]*?)`;/)[1];
+const shaders=[...original,...EXTRA_SHADERS].map(x=>({name:x.name,vert:vertex,frag:(x.ext?'#extension GL_OES_standard_derivatives : enable\n':'')+common+x.src.replace(/gl_FragCoord\.xy\s*\/\s*u_r/g,'(gl_FragCoord.xy+u_off)/u_world').replace(/u_r\.x\s*\/\s*u_r\.y/g,'u_world.x/u_world.y')}));
+const stage=fs.readFileSync(new URL('../three-stage.js',import.meta.url),'utf8');
+shaders.push({name:'Dimensional typography',vert:'precision highp float;attribute vec3 position;attribute vec2 uv;uniform mat4 projectionMatrix;uniform mat4 modelViewMatrix;'+stage.match(/vertexShader:`([\s\S]*?)`,/)[1],frag:'precision highp float;'+stage.match(/fragmentShader:`([\s\S]*?)`\}/)[1],compileOnly:true});
+shaders.push({name:'Particle engine',vert:s.match(/const P_VERT=`([\s\S]*?)`;/)[1],frag:s.match(/const P_FRAG=`([\s\S]*?)`;/)[1],compileOnly:true});
+fs.writeFileSync(path.join(out,'shaders.json'),JSON.stringify(shaders));
+console.log(`Exported ${shaders.length} graphics programs to ${out}`);
