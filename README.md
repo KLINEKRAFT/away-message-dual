@@ -1,12 +1,12 @@
-# Away — Paper Studio
+# Away — Motion Studio
 
-A dual-screen away display arranged as an editable print. Open **Edit poster** for three tabs: Scene, Message, and Display.
+A dual-screen away display with animated backgrounds. Open **Edit display** for three tabs: Scene, Message, and Display.
 
 ## Scenes and materials
 
-Botanical print pairs an original two-ink flower illustration with a textured sheet. Paper cut moves overlapping cut shapes slowly across the page. Overprint shifts two translucent plates against one another. Blank sheet leaves room for typography alone.
+Contour Lines is the default. Six cards preview Contour Lines, Topo Glow, Tidal Bands, Light Ribbons, Mesh Gradient, and Silk Flow. The library holds 19 motion scenes and three paper compositions. Featured scenes have static image fallbacks when WebGL is unavailable. Paper scenes still offer cotton rag, laid paper, and kraft with a separate color wash.
 
-Choose cotton rag, laid paper, or kraft. Change the wash color and its strength independently from the lettering and both printing inks. The paper artwork and stock tiles ship with the site and work without WebGL. The scene library also contains the 17 retained motion backgrounds. A browser without WebGL displays a color gradient for those scenes.
+Scene names stay in the editor. Share a direct example using a query such as `?scene=Tidal%20Bands`. The text color defaults to a contrasting ink for each composition. Selecting a text color overrides Auto.
 
 ## Display
 
@@ -22,3 +22,6 @@ Use Node 20.19+ or 22.12+. Run `npm ci`, `npm run dev`, `npm test`, and `npm run
 
 - MoMA describes Matisse arranging cut shapes from sheets of painted paper. This informed the independently colored silhouettes in Paper cut. [Matisse’s cut-outs](https://www.moma.org/magazine/articles/1156)
 - Letterform Archive documents Amos Kennedy Jr.’s variable overprinting on chipboard. This informed the interaction between the two inks and the stock in Overprint. [Amos Kennedy Jr.](https://letterformarchive.org/news/amos-kennedy-jr/)
+
+- [Codrops gradient topography](https://tympanus.net/codrops/2018/01/24/gradient-topography-animation/), [Paper Waves](https://shaders.paper.design/waves), and [Paper Mesh Gradient](https://shaders.paper.design/mesh-gradient) informed the featured motion choices.
+- The native range inputs use a filled track, visible values, and keyboard navigation. [Carbon slider](https://carbondesignsystem.com/components/slider/usage/) · [Radix slider](https://www.radix-ui.com/primitives/docs/components/slider)

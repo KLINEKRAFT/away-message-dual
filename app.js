@@ -89,18 +89,43 @@ function receiveMessage(text){
 }
 function refreshFallback(){
   const root=document.documentElement;
+  const rgb=h2rgb(document.getElementById('cInk').value);
+  const luminance=.2126*rgb[0]+.7152*rgb[1]+.0722*rgb[2];
+  root.style.setProperty('--letter-halo',luminance<.45?'#fff9':'#070917a8');
   root.style.setProperty('--a',document.getElementById('cShd').value);
   root.style.setProperty('--b',document.getElementById('cShdB').value);
   root.style.setProperty('--c',document.getElementById('cShdC').value);
 }
+const lightScenes=new Set(['Contour Lines','Mesh Gradient','Tidal Bands','Liquid Chrome']);
+const previousInk=LS.get('away_ink','');
+let autoInk=LS.get('away_auto_ink',['','#26392e','#101329'].includes(previousInk)?'1':'0')==='1';
+function applySceneInk(scene){
+  const button=document.getElementById('autoInk');
+  button.setAttribute('aria-pressed',autoInk);
+  if(!autoInk)return;
+  const ink=scene.paper||lightScenes.has(scene.name)?'#101329':'#f3f4ff';
+  document.documentElement.style.setProperty('--ink',ink);
+  document.getElementById('cInk').value=ink;
+  refreshFallback();
+  syncTickerStyle();
+}
 function refreshSelection(){
-  document.querySelectorAll('#bgList button').forEach((b,i)=>{b.classList.toggle('on',cur===motionSceneCount+i);b.setAttribute('aria-pressed',cur===motionSceneCount+i);});
+  document.querySelectorAll('#bgList button').forEach(button=>{
+    const active=button.dataset.scene===SHADERS[cur].name;
+    button.classList.toggle('on',active);
+    button.setAttribute('aria-pressed',active);
+  });
   for(const [selector,key,value] of [['#animSeg','a',curAnim],['#scrollSeg','s',curScroll]]){
     document.querySelectorAll(selector+' button').forEach(b=>{const on=(b.dataset[key]||'')===value;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on);});
   }
   const scene=SHADERS[cur];
-  document.body.dataset.scene=scene.paper?String(cur-motionSceneCount):'motion';
-  document.getElementById('sceneName').textContent=scene.name;
+  applySceneInk(scene);
+  if(featured.includes(scene.name)){
+    const slug=scene.name.toLowerCase().replaceAll(' ','-');
+    document.body.style.setProperty('--scene-still',`url('/scenes/${slug}.webp')`);
+  }else document.body.style.removeProperty('--scene-still');
+  document.body.dataset.scene=scene.paper?scene.name:'motion';
+  document.getElementById('paperControls').hidden=!scene.paper;
   document.getElementById('sceneSelect').value=scene.name;
   syncToggleStates();
 }
@@ -141,6 +166,7 @@ function monitorOffsetX(){ return isMonitor2 ? (monitor1Width||0) : 0; }
 
 /* ─────── Broadcast Channel Setup ─────── */
 let bc = null;
+let initialized=false;
 try{
   bc = new BroadcastChannel('away_dual_sync');
   bc.onmessage = (e)=>{
@@ -183,7 +209,7 @@ try{
         broadcast('speed',{speed: tickerSpeed});
         broadcast('scroll',{scroll: curScroll, epoch: sharedEpoch});
         broadcast('animation',{anim: curAnim});
-        broadcast('shader',{index: cur});
+        broadcast('shader',{index:cur,name:SHADERS[cur].name});
 
         broadcast('style', styleSnapshot());
 
@@ -199,7 +225,7 @@ try{
 }
 
 function broadcast(type, data){
-  if(bc) bc.postMessage({type, data});
+  if(bc && (!isMonitor2 || initialized || type==='width')) bc.postMessage({type, data});
 }
 
 function publishWidth(){
@@ -253,7 +279,7 @@ const SHADERS=[
 {name:'Bokeh Drift',src:`void main(){vec2 uv=gl_FragCoord.xy/u_r;float ar=u_r.x/u_r.y;vec2 p=vec2(uv.x*ar,uv.y);vec3 col=u_c3*.09+mix(u_c3,u_c,uv.y)*.07;for(int L=0;L<3;L++){float fl=float(L);float sc=2.6+fl*1.9;float dir=(L==1)?-1.:1.;vec2 q=p*sc+vec2(u_t*(.05+fl*.03)*dir,sin(u_t*.04+fl*2.1)*.25);vec2 id=floor(q);vec2 f=fract(q)-.5;float rn=h(id+fl*31.7);vec2 off=(vec2(h(id+7.1),h(id+13.7))-.5)*.6;float d=length(f-off);float rad=.10+rn*.16;float tw=.35+.65*(.5+.5*sin(u_t*(.25+rn*.9)+rn*40.));float glow=exp(-pow(d/rad,2.)*3.5)*tw;vec3 bc=rn>.66?u_c:(rn>.33?u_c2:u_c3);col+=bc*glow*(.34-fl*.09);}float md=distance(uv,u_m);col+=u_c2*.09*exp(-md*md*6.);float cd=distance(uv,u_ck.xy);col+=sin(cd*30.-u_ck.z*7.)*exp(-cd*4.)*exp(-u_ck.z*2.2)*.13;col+=u_c2*u_au*.15;gl_FragColor=vec4(clamp(col,0.,1.),1.);}`},
 ];
 SHADERS.push(...EXTRA_SHADERS);
-const PAPER_SCENES = ['Botanical print','Paper cut','Overprint','Blank sheet'];
+const PAPER_SCENES = ['Paper cut','Overprint','Blank sheet'];
 const motionSceneCount = SHADERS.length;
 SHADERS.push(...PAPER_SCENES.map(name=>({name,paper:true})));
 // Rewrite shader sources to sample in world UV so the pattern spans across both monitors.
@@ -303,7 +329,8 @@ initGL();
 canvas.addEventListener('webglcontextlost',e=>{e.preventDefault();glLost=true;document.body.classList.add('no-webgl');});
 canvas.addEventListener('webglcontextrestored',()=>{glLost=false;document.body.classList.remove('no-webgl');gl.getExtension('OES_standard_derivatives');initGL();resize();});
 
-let cur=motionSceneCount;
+const defaultScene=SHADERS.findIndex(scene=>scene.name==='Contour Lines');
+let cur=defaultScene;
 let DPR=1;
 function renderDPR(){const budget=quality==='eco'?1100000:quality==='high'?4200000:2300000;return Math.min(devicePixelRatio||1,quality==='high'?2:quality==='eco'?1:1.5,Math.sqrt(budget/(innerWidth*innerHeight)));}
 function resize(){DPR=renderDPR();canvas.width=innerWidth*DPR;canvas.height=innerHeight*DPR;canvas.style.width=innerWidth+'px';canvas.style.height=innerHeight+'px';}
@@ -414,8 +441,8 @@ function loop(){
   }
 
   updateTicker();
-  if(cur===motionSceneCount+1||cur===motionSceneCount+2){
-    const variable=cur===motionSceneCount+1?'--cut-shift':'--press-shift';
+  if(cur===motionSceneCount||cur===motionSceneCount+1){
+    const variable=cur===motionSceneCount?'--cut-shift':'--press-shift';
     document.getElementById('printWorld').style.setProperty(variable,Math.sin(t*.16)*12+'px');
   }
   const wrap=document.getElementById('messageWrap');
@@ -506,6 +533,7 @@ function applyScrollFromSync(data){
 }
 
 function applyStyleFromSync(data){
+  if(typeof data.autoInk==='boolean'){autoInk=data.autoInk;document.getElementById('autoInk').setAttribute('aria-pressed',autoInk);}
   if(data.inkColor){document.documentElement.style.setProperty('--ink',data.inkColor);const el=document.getElementById('cInk');if(el)el.value=data.inkColor;}
   if(data.accentColor){document.documentElement.style.setProperty('--accent',data.accentColor);const el=document.getElementById('cAcc');if(el)el.value=data.accentColor;}
   if(data.shaderCol){const c=data.shaderCol;sCol=[c.r,c.g,c.b];}
@@ -526,7 +554,10 @@ function applyFontFromSync(data){
   [...fontList.children].forEach((button,i)=>button.classList.toggle('on',i===index));
   rebuildTicker();
 }
-function applyShaderFromSync(data){if(Number.isInteger(data.index)&&SHADERS[data.index]){cur=data.index;refreshSelection();}}
+function applyShaderFromSync(data){
+  const index=data.name?SHADERS.findIndex(scene=>scene.name===data.name):data.index;
+  if(Number.isInteger(index)&&SHADERS[index]){cur=index;refreshSelection();}
+}
 
 msg.addEventListener('input',()=>{
   origText=msg.innerText.slice(0,280);saveMessage();
@@ -600,7 +631,7 @@ function updateTicker(){
 
 const panel=document.getElementById('panel');
 const sceneSelect=document.getElementById('sceneSelect');
-for(const [label,items] of [['Paper',SHADERS.slice(motionSceneCount)],['Motion',SHADERS.slice(0,motionSceneCount)]]){
+for(const [label,items] of [['Motion',SHADERS.slice(0,motionSceneCount)],['Paper',SHADERS.slice(motionSceneCount)]]){
   const group=document.createElement('optgroup');
   group.label=label;
   for(const scene of items)group.append(new Option(scene.name,scene.name));
@@ -608,13 +639,21 @@ for(const [label,items] of [['Paper',SHADERS.slice(motionSceneCount)],['Motion',
 }
 sceneSelect.onchange=()=>pickShader(SHADERS.findIndex(s=>s.name===sceneSelect.value));
 const bgList=document.getElementById('bgList');
-PAPER_SCENES.forEach((name,i)=>{
-  const b=document.createElement('button');
-  b.type='button';
-  b.innerHTML=`<i class="sample sample-${i}"></i><span>${name}</span>`;
-  b.onclick=()=>pickShader(motionSceneCount+i);
-  bgList.append(b);
-});
+const featured=['Contour Lines','Topo Glow','Tidal Bands','Light Ribbons','Mesh Gradient','Silk Flow'];
+for(const name of featured){
+  const button=document.createElement('button');
+  button.type='button';
+  button.dataset.scene=name;
+  const sample=document.createElement('img');
+  sample.className='sample';
+  sample.alt='';
+  sample.src='/scenes/'+name.toLowerCase().replaceAll(' ','-')+'.webp';
+  const label=document.createElement('span');
+  label.textContent=name;
+  button.append(sample,label);
+  button.onclick=()=>pickShader(SHADERS.findIndex(scene=>scene.name===name));
+  bgList.append(button);
+}
 function updatePaperWorld(){
   document.documentElement.style.setProperty('--preview-scale',(innerWidth-420)/innerWidth);
   const layer=document.getElementById('printWorld');
@@ -673,7 +712,7 @@ document.getElementById('spdRst').onclick=()=>{ setSpeed(140); spdR.value=140; s
 function h2rgb(h){const n=parseInt(h.slice(1),16);return[(n>>16&255)/255,(n>>8&255)/255,(n&255)/255];}
 function styleSnapshot(){
   return {
-    inkColor:document.getElementById('cInk').value,
+    autoInk,inkColor:document.getElementById('cInk').value,
     accentColor:document.getElementById('cAcc').value,
     shaderCol:{r:sCol[0],g:sCol[1],b:sCol[2]},
     aHex:document.getElementById('cShd').value,
@@ -682,7 +721,18 @@ function styleSnapshot(){
     bri, sat,
   };
 }
-document.getElementById('cInk').oninput=e=>setColors({ink:e.target.value});
+document.getElementById('cInk').oninput=e=>{
+  autoInk=false;
+  LS.set('away_auto_ink','0');
+  setColors({ink:e.target.value});
+};
+document.getElementById('autoInk').onclick=()=>{
+  autoInk=!autoInk;
+  LS.set('away_auto_ink',autoInk?'1':'0');
+  applySceneInk(SHADERS[cur]);
+  LS.set('away_ink',document.getElementById('cInk').value);
+  broadcast('style',styleSnapshot());
+};
 document.getElementById('cAcc').oninput=e=>setColors({accent:e.target.value});
 document.getElementById('cShd').oninput=e=>setColors({tintA:e.target.value});
 document.getElementById('cShdB').oninput=e=>setColors({tintB:e.target.value});
@@ -707,8 +757,9 @@ function pickShader(i){
   if(i<0||i>=SHADERS.length) return;
   if(shuffleOn) setShuffle(false); // manual pick wins over auto-cycle
   cur=i;refreshSelection();
+  if(urlParams.has('scene')){urlParams.delete('scene');history.replaceState(null,'',location.pathname+(urlParams.size?'?'+urlParams:'')+location.hash);}
   LS.set('away_scene_name', SHADERS[i].name);
-  broadcast('shader',{index:i});
+  broadcast('shader',{index:i,name:SHADERS[i].name});
 }
 function pickAnim(cls){
   document.querySelectorAll('#animSeg button').forEach(b=>b.classList.toggle('on', (b.dataset.a||'')===cls));
@@ -866,23 +917,26 @@ strength.oninput=savePaper;
   const oldIndex=Number(LS.get('away_shader','-1'));
   const originalExtras={21:'Liquid Marble',23:'Heat Haze',26:'Topo Glow',28:'Northern Veil'};
   const legacyName=oldIndex>=0&&oldIndex<13?SHADERS[oldIndex]?.name:originalExtras[oldIndex];
-  const savedScene=LS.get('away_scene_name',legacyName||PAPER_SCENES[0]);
+  const savedScene=LS.get('away_scene_name',legacyName||'Contour Lines');
   const index=SHADERS.findIndex(s=>s.name===savedScene);
-  cur=index>=0?index:motionSceneCount;
-  // Retired scenes often used pale lettering over a dark shader. Start those
-  // displays with the paper inks once, then persist the user's new choices.
-  const firstPaperVisit=!LS.get('away_scene_name','')&&!legacyName;
-  const readColor=(key,fallback)=>firstPaperVisit?fallback:LS.get(key,fallback);
+  const linked=SHADERS.findIndex(s=>s.name===urlParams.get('scene'));
+  cur=linked>=0?linked:index>=0?index:defaultScene;
+  // Keep a custom palette when upgrading an old botanical display.
+  const migrate=(!LS.get('away_scene_name','')&&!legacyName)||savedScene==='Botanical print';
+  const color=(key,oldDefault,newDefault)=>{
+    const stored=LS.get(key,newDefault);
+    return migrate&&stored===oldDefault?newDefault:stored;
+  };
   setColors({
-    ink:readColor('away_ink','#26392e'),
-    accent:readColor('away_acc','#cc5030'),
-    tintA:readColor('away_tint','#acba96'),
-    tintB:readColor('away_tint2','#cf603c'),
-    tintC:readColor('away_tint3','#314c39'),
-    bri:Number(readColor('away_bri','1')),
-    sat:Number(readColor('away_sat','1'))
+    ink:color('away_ink','#26392e','#101329'),
+    accent:color('away_acc','#cc5030','#817dfa'),
+    tintA:color('away_tint','#acba96','#adb3ff'),
+    tintB:color('away_tint2','#cf603c','#99f5db'),
+    tintC:color('away_tint3','#314c39','#5549a5'),
+    bri:Number(LS.get('away_bri','1')),
+    sat:Number(LS.get('away_sat','1'))
   });
-  LS.set('away_scene_name',SHADERS[cur].name);
+  if(linked<0)LS.set('away_scene_name',SHADERS[cur].name);
   restorePaper();
   const savedAnim = LS.get('away_anim','');
   pickAnim([...document.querySelectorAll('#animSeg button')].some(b=>b.dataset.a===savedAnim)?savedAnim:'');
@@ -895,7 +949,7 @@ strength.oninput=savePaper;
     document.querySelectorAll('#scrollSeg button').forEach(b=>b.classList.toggle('on',(b.dataset.s||'')===savedScroll));
   }
   const savedFont = LS.get('away_font','');
-  pickFont(FONTS.some(f=>f[0]===savedFont)?savedFont:'Cormorant');
+  pickFont(FONTS.some(f=>f[0]===savedFont)?savedFont:'Outfit');
   const savedSize = LS.get('away_size','');
   if(savedSize){ msg.style.fontSize = savedSize+'px'; szVal.textContent = savedSize+'px'; szR.value = savedSize; }
   setShuffle(LS.get('away_cycle','0')==='1', true);
@@ -949,6 +1003,22 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden){lastFrame
 document.addEventListener('keydown',e=>{if(e.key==='Escape'&&panel.classList.contains('open'))togglePanel(false);});
 document.getElementById('messageInput').value=origText;
 document.getElementById('messageCount').textContent=Array.from(origText).length+' / 280';
+const ranges=[...document.querySelectorAll('input[type=range]')];
+function paintRanges(){
+  for(const range of ranges){
+    const percent=100*(Number(range.value)-Number(range.min))/(Number(range.max)-Number(range.min));
+    range.style.setProperty('--fill',percent+'%');
+  }
+}
+document.addEventListener('input',paintRanges);
+document.addEventListener('click',paintRanges);
+window.addEventListener('keydown',paintRanges);
+if(bc){
+  const receive=bc.onmessage;
+  bc.onmessage=event=>{receive(event);paintRanges();};
+}
+paintRanges();
+initialized=true;
 applyMotionUI();refreshSelection();refreshFallback();
 const legacyDurations={'a-shimmer':3.6,'a-neon':2.4,'a-rainbow':5,'a-breathe':3.4,'a-wobble':2.4,'a-chroma':1.8,'a-drift':6,'a-fade':4.2,'a-flicker':4.6,};
 const motionStyles=document.createElement('style');motionStyles.textContent=Object.entries(legacyDurations).map(([a,t])=>`body.${a} #msg,body.${a} .ticker-item{animation-duration:calc(${t}s / var(--motion-speed))}`).join('\n');document.head.append(motionStyles);

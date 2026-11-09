@@ -25,26 +25,26 @@ function app({seed={},reduced=false,url='https://away.test/'}={}){
 function click(a,id){a.w.document.getElementById(id).click();}
 function input(a,id,value){const e=a.w.document.getElementById(id);e.value=value;e.dispatchEvent(new a.w.Event('input',{bubbles:true}));}
 
-test('paper studio opens without WebGL and exposes only the retained library',()=>{
+test('motion studio opens without WebGL and exposes only the retained library',()=>{
   const a=app();try{
     const doc=a.w.document;
-    assert.equal(doc.querySelectorAll('#sceneSelect option').length,21);
-    assert.equal(doc.querySelectorAll('#bgList button').length,4);
+    assert.equal(doc.querySelectorAll('#sceneSelect option').length,22);
+    assert.equal(doc.querySelectorAll('#bgList button').length,6);
     assert.equal(doc.querySelectorAll('#fontList button').length,4);
-    assert.equal(doc.body.dataset.scene,'0');
+    assert.equal(doc.body.dataset.scene,'motion');
     assert.ok(doc.getElementById('clock').textContent);
     a.frame();click(a,'tog');
     assert.equal(doc.getElementById('tog').getAttribute('aria-expanded'),'true');
   }finally{a.close();}
 });
 test('legacy scenes and removed fonts and motion migrate without losing the message',()=>{
-  for(const [index,name] of [[12,'Bokeh Drift'],[21,'Liquid Marble'],[33,'Botanical print']]){
+  for(const [index,name] of [[12,'Bokeh Drift'],[21,'Liquid Marble'],[33,'Contour Lines']]){
     const a=app({seed:{away_shader:String(index),away_font:'Bebas',away_anim:'a-sculpt',away_msg:'Back at noon'}});
     try{
       assert.equal(a.w.document.getElementById('sceneSelect').value,name);
       assert.equal(a.run('curAnim'),'');
       assert.equal(a.run('origText'),'Back at noon');
-      assert.equal(a.w.localStorage.getItem('away_font'),'Cormorant');
+      assert.equal(a.w.localStorage.getItem('away_font'),'Outfit');
     }finally{a.close();}
   }
 });
@@ -78,12 +78,12 @@ test('pause and speed use continuous synchronized clocks',()=>{
 test('reduced-motion preference pauses all motion on first visit',()=>{
   const a=app({reduced:true});try{assert.ok(a.w.document.body.classList.contains('motion-paused'));click(a,'dockPause');assert.equal(a.w.document.body.classList.contains('motion-paused'),false);}finally{a.close();}
 });
-test('Paper scene selection and keyboard tabs reveal the intended controls',()=>{
+test('Featured scene selection and keyboard tabs reveal the intended controls',()=>{
   const a=app();try{
     a.w.document.querySelector('[data-tab=scene]').click();
     assert.equal(a.w.document.getElementById('scenePane').hidden,false);
     a.w.document.querySelectorAll('#bgList button')[2].click();
-    assert.equal(a.w.document.body.dataset.scene,'2');
+    assert.equal(a.w.document.getElementById('sceneSelect').value,'Tidal Bands');
     a.w.document.querySelector('[data-tab=scene]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
     assert.equal(a.w.document.getElementById('typePane').hidden,false);
   }finally{a.close();}
@@ -110,4 +110,18 @@ test('stock and a zero-strength wash survive reopening and sync to a second disp
     try{assert.equal(reopened.w.document.body.dataset.stock,'kraft');assert.equal(reopened.w.document.getElementById('wash').value,'0');}
     finally{reopened.close();}
   }finally{a.close();b.close();}
+});
+
+test('botanical settings migrate to contours and example links open the named scene',()=>{
+  for(const [url,scene] of [['https://away.test/','Contour Lines'],['https://away.test/?scene=Light+Ribbons','Light Ribbons']]){
+    const a=app({url,seed:{away_scene_name:'Botanical print',away_msg:'Back soon',away_tint:'#121212'}});
+    try{
+      assert.equal(a.w.document.getElementById('sceneSelect').value,scene);
+      assert.equal(a.w.document.getElementById('cShd').value,'#121212');
+      assert.equal(a.w.document.getElementById('msg').textContent,'Back soon');
+      assert.equal(a.w.document.querySelector('#mast,#badge,#printCaption'),null);
+      input(a,'cSat','50');
+      assert.equal(a.w.document.getElementById('cSat').style.getPropertyValue('--fill'),'25%');
+    }finally{a.close();}
+  }
 });

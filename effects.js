@@ -24,6 +24,32 @@ export const EXTRA_SHADERS = [
     float curtain=exp(-abs(uv.y-band)*7.)*(.35+.65*fbm(vec2(p.x*25.-t,uv.y*2.)));
     vec3 c=mix(u_c2,u_c,.5+.5*sin(p.x*2.+t));gl_FragColor=vec4(u_c3*.1+c*curtain,1.);
   }`},
+  {name:'Tidal Bands',src:`void main(){
+    vec2 uv=gl_FragCoord.xy/u_r;
+    float t=u_t*.12;
+    float x=uv.x*u_r.x/u_r.y;
+    float height=uv.y+.16*sin(x*2.8+t)+.07*sin(x*5.1-t*.7);
+    float phase=height*5.5;
+    float band=fract(phase);
+    float crest=smoothstep(.77,.99,band);
+    float light=.5+.5*cos(phase*.84-.4);
+    vec3 body=mix(u_c3,u_c,light*.82+.08);
+    gl_FragColor=vec4(mix(body,u_c2,crest*.55),1.);
+  }`},
+  {name:'Light Ribbons',src:`void main(){
+    vec2 uv=gl_FragCoord.xy/u_r;
+    float x=uv.x*u_r.x/u_r.y;
+    float t=u_t*.14;
+    vec3 color=mix(u_c3*.18,u_c*.36,uv.y);
+    for(int i=0;i<3;i++){
+      float k=float(i);
+      float arc=.3+.1*k+.27*sin(x*1.8+t*.6+k*.5)+.12*sin(x*3.5-t*.4+.4*k);
+      float d=uv.y-arc;
+      float ribbon=exp(-abs(d)*mix(10.,80.,step(0.,d)));
+      color+=mix(u_c,u_c2,k*.42)*ribbon*.60;
+    }
+    gl_FragColor=vec4(color,1.);
+  }`},
 ];
 // Pure helpers shared by runtime and regression tests.
 export function advanceClock(clock, now, speed=clock.speed, paused=clock.paused){
