@@ -25,26 +25,28 @@ function app({seed={},reduced=false,url='https://away.test/'}={}){
 function click(a,id){a.w.document.getElementById(id).click();}
 function input(a,id,value){const e=a.w.document.getElementById(id);e.value=value;e.dispatchEvent(new a.w.Event('input',{bubbles:true}));}
 
-test('a missing GPU still initializes all backgrounds, palettes, controls and the clock',()=>{
+test('paper studio opens without WebGL and exposes only the retained library',()=>{
   const a=app();try{
-    assert.equal(a.w.document.querySelectorAll('#bgList button').length,34);
-    assert.equal(a.w.document.querySelectorAll('#swList button').length,24);
-    assert.equal(a.w.document.querySelectorAll('#presetList button').length,24);
-    assert.ok(a.w.document.getElementById('clock').textContent.length>0);
-    assert.ok(a.w.document.body.classList.contains('no-webgl'));
-    a.frame();assert.equal(a.w.document.getElementById('renderNotice').hidden,false);
-    click(a,'editBtn');assert.equal(a.w.document.getElementById('tog').getAttribute('aria-expanded'),'true');
+    const doc=a.w.document;
+    assert.equal(doc.querySelectorAll('#sceneSelect option').length,21);
+    assert.equal(doc.querySelectorAll('#bgList button').length,4);
+    assert.equal(doc.querySelectorAll('#fontList button').length,4);
+    assert.equal(doc.body.dataset.scene,'0');
+    assert.ok(doc.getElementById('clock').textContent);
+    a.frame();click(a,'tog');
+    assert.equal(doc.getElementById('tog').getAttribute('aria-expanded'),'true');
   }finally{a.close();}
 });
-test('every shipped preset applies valid selections without losing the message',()=>{
-  const a=app();try{
-    for(const button of a.w.document.querySelectorAll('#presetList button')){
-      button.click();assert.equal(a.run('origText'),'Be right back');
-      assert.equal(a.w.document.querySelectorAll('#bgList button.on').length,1);
-      assert.equal(a.w.document.querySelectorAll('#animSeg button.on').length,1);
-      assert.equal(a.w.document.querySelectorAll('#fontList button.on').length,1);
-    }
-  }finally{a.close();}
+test('legacy scenes and removed fonts and motion migrate without losing the message',()=>{
+  for(const [index,name] of [[12,'Bokeh Drift'],[21,'Liquid Marble'],[33,'Botanical print']]){
+    const a=app({seed:{away_shader:String(index),away_font:'Bebas',away_anim:'a-sculpt',away_msg:'Back at noon'}});
+    try{
+      assert.equal(a.w.document.getElementById('sceneSelect').value,name);
+      assert.equal(a.run('curAnim'),'');
+      assert.equal(a.run('origText'),'Back at noon');
+      assert.equal(a.w.localStorage.getItem('away_font'),'Cormorant');
+    }finally{a.close();}
+  }
 });
 test('message editing survives animated type, remote updates and reload',()=>{
   const a=app();try{
@@ -67,14 +69,6 @@ test('native controls keep keyboard shortcuts from changing the scene',()=>{
     }
   }finally{a.close();}
 });
-test('shuffle undo restores the complete look',()=>{
-  const a=app();try{
-    a.run("setColors({sat:0});applySizeFromSync({fontSize:112});setMotion(.5,false)");
-    const before=JSON.stringify(a.run('captureConfig()'));
-    click(a,'randomBtn');click(a,'undoBtn');
-    assert.equal(JSON.stringify(a.run('captureConfig()')),before);
-  }finally{a.close();}
-});
 test('pause and speed use continuous synchronized clocks',()=>{
   const c={at:1000,value:10,speed:2,paused:false};
   const pause=effects.advanceClock(c,3000,2,true);assert.equal(pause.value,14);assert.equal(effects.clockValue(pause,8000),14);
@@ -84,27 +78,36 @@ test('pause and speed use continuous synchronized clocks',()=>{
 test('reduced-motion preference pauses all motion on first visit',()=>{
   const a=app({reduced:true});try{assert.ok(a.w.document.body.classList.contains('motion-paused'));click(a,'dockPause');assert.equal(a.w.document.body.classList.contains('motion-paused'),false);}finally{a.close();}
 });
-test('background category filter and keyboard tabs reveal the intended controls',()=>{
+test('Paper scene selection and keyboard tabs reveal the intended controls',()=>{
   const a=app();try{
     a.w.document.querySelector('[data-tab=scene]').click();
     assert.equal(a.w.document.getElementById('scenePane').hidden,false);
-    a.w.document.querySelector('[data-filter="3D"]').click();
-    assert.equal(a.w.document.querySelectorAll('#bgList button:not([hidden])').length,4);
+    a.w.document.querySelectorAll('#bgList button')[2].click();
+    assert.equal(a.w.document.body.dataset.scene,'2');
     a.w.document.querySelector('[data-tab=scene]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
     assert.equal(a.w.document.getElementById('typePane').hidden,false);
   }finally{a.close();}
 });
 test('second-display message, motion, colors and selections synchronize',()=>{
   const a=app(),b=app({url:'https://away.test/?monitor=2'});try{
-    a.run("receiveMessage('Two screens');saveMessage();pickShader(21);setMotion(.7,true);setColors({tintB:'#ff4455'});pickAnim('a-echo')");
+    a.run("receiveMessage('Two screens');saveMessage();pickShader(19);setMotion(.7,true);setColors({tintB:'#ff4455'});pickAnim('a-echo')");
     for(const message of a.sent)b.run('bc.onmessage({data:'+JSON.stringify(message)+'})');
-    assert.equal(b.run('origText'),'Two screens');assert.equal(b.run('cur'),21);assert.equal(b.run('curAnim'),'a-echo');
+    assert.equal(b.run('origText'),'Two screens');assert.equal(b.run('cur'),19);assert.equal(b.run('curAnim'),'a-echo');
     assert.equal(b.w.document.getElementById('cShdB').value,'#ff4455');assert.ok(b.w.document.body.classList.contains('motion-paused'));
   }finally{a.close();b.close();}
 });
 test('quick timers display and clear a real countdown',()=>{
   const a=app();try{a.w.document.querySelector('[data-minutes="15"]').click();assert.ok(a.w.document.getElementById('countdown').classList.contains('show'));assert.ok(a.w.document.getElementById('backAt').value);click(a,'backAtClr');assert.equal(a.w.document.getElementById('countdown').classList.contains('show'),false);}finally{a.close();}
 });
-test('saving Mine restores zero saturation and the chosen text effect',()=>{
-  const a=app();try{a.run("setColors({sat:0});pickAnim('a-echo')");click(a,'savePresetBtn');a.run("setColors({sat:1});pickAnim('')");[...a.w.document.querySelectorAll('#presetList button')].find(b=>b.textContent==='Mine').click();assert.equal(a.run('sat'),0);assert.equal(a.run('curAnim'),'a-echo');}finally{a.close();}
+test('stock and a zero-strength wash survive reopening and sync to a second display',()=>{
+  const a=app(),b=app({url:'https://away.test/?monitor=2'});
+  try{
+    a.run("stock.value='kraft';strength.value='0';savePaper()");
+    for(const message of a.sent)b.run('bc.onmessage({data:'+JSON.stringify(message)+'})');
+    assert.equal(b.w.document.body.dataset.stock,'kraft');
+    assert.equal(b.w.document.getElementById('washValue').value,'0%');
+    const reopened=app({seed:{...a.w.localStorage}});
+    try{assert.equal(reopened.w.document.body.dataset.stock,'kraft');assert.equal(reopened.w.document.getElementById('wash').value,'0');}
+    finally{reopened.close();}
+  }finally{a.close();b.close();}
 });

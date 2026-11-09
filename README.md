@@ -1,65 +1,24 @@
-# Away / Motion Studio
+# Away — Paper Studio
 
-A full-screen, desktop-first away display with synchronized dual-monitor backgrounds and marquee text.
+A dual-screen away display arranged as an editable print. Open **Edit poster** for three tabs: Scene, Message, and Display.
 
-## What's included
+## Scenes and materials
 
-- 34 backgrounds: the original 18, 12 new procedural shaders, and 4 Three.js scenes.
-- 24 palettes, 24 ready-made looks, a saved personal look, and Shuffle with Undo.
-- 25 type animation choices (including Still): letter waves, bounce, echo, outline, elastic type, and 4 dimensional treatments.
-- Pause/resume, continuous motion speed, timed background cycling, and three rendering quality levels.
-- Editable multiline messages, quick break messages, return timers, fullscreen, and the existing microphone pulse / particle modes.
-- A four-tab studio with keyboard controls. The interface fades out after 4.5 seconds of inactivity.
-- Animated-gradient fallback when WebGL is unavailable; the message, clock, and controls remain usable.
+Botanical print pairs an original two-ink flower illustration with a textured sheet. Paper cut moves overlapping cut shapes slowly across the page. Overprint shifts two translucent plates against one another. Blank sheet leaves room for typography alone.
 
-## Run
+Choose cotton rag, laid paper, or kraft. Change the wash color and its strength independently from the lettering and both printing inks. The paper artwork and stock tiles ship with the site and work without WebGL. The scene library also contains the 17 retained motion backgrounds. A browser without WebGL displays a color gradient for those scenes.
 
-Node 20.19+ or 22.12+ is required by Vite. Use `npm ci`, then `npm run dev`. `npm run build` produces `dist/`; the included Vercel configuration selects this output. Three.js is bundled locally and loaded on demand. Google Fonts remain optional; system typefaces work if font downloads fail.
+## Display
 
-## Desktop controls
+Messages, paper, ink, scene, motion, marquee, and return timers synchronize between same-origin windows in one browser profile. Use **Display → Open on other screen**, move that window to the right monitor, then fullscreen each window. Hardware rendering quality is local to each screen. The second display occupies the right side of the shared print.
 
-Open **Edit look** to access Looks, Scene, Type, and Setup. Use **Setup → Open on other screen** and move the second window to the right-hand monitor; fullscreen each window independently. Messages, colors, backgrounds, motion, timers, and particle settings synchronize between windows on the same origin. This is window synchronization within one browser profile, not cross-device cloud sync.
+M opens the editor. F toggles fullscreen, C pauses motion, and Space changes marquee direction. Direct message editing and the Message tab both support multiline text. Reduced-motion preferences pause motion on first use.
 
-| Key | Action |
-| --- | --- |
-| M | Studio |
-| F | Fullscreen |
-| R / Z | Shuffle / undo |
-| C | Pause / resume motion |
-| P / B / N / T | Next preset / background / animation / typeface |
-| X | Next particle mode |
-| S | Cycle backgrounds |
-| Space | Cycle scrolling direction |
-| Left / right | Adjust marquee speed |
-| L | Lock direct text editing |
-| Escape | Close studio |
+## Run and verify
 
-Shortcuts yield to focused inputs and buttons. Pause defaults on when the operating system requests reduced motion. Quality is local to each screen so a laptop can run a lower resolution while another display uses High.
+Use Node 20.19+ or 22.12+. Run `npm ci`, `npm run dev`, `npm test`, and `npm run build`. Vercel serves the generated dist directory.
 
-Dimensional type is centered per monitor. Scrolling uses the normal marquee layer. Sculpture uses the bundled geometric font; other dimensional effects use the chosen typeface. Non-ASCII messages retain readable canvas type. Microphone access is requested only when Audio pulse is explicitly enabled.
+## Design references
 
-## Verification
-
-`npm test` runs 11 DOM integration and clock regression tests, including no-GPU initialization, every preset, message edits, native keyboard input, Shuffle/Undo, saved settings, timers, and the dual-window message protocol.
-
-Optional Linux graphics validation requires EGL with a surfaceless OpenGL ES 2 implementation and Python Pillow:
-
-```sh
-node tests/export-shaders.mjs /tmp/away-qa
-python tests/render-shaders.py /tmp/away-qa
-```
-
-This compiles and links 36 programs, renders the 30 procedural backgrounds plus the four 3D underlays, and produces a contact sheet. It does **not** render the Three.js meshes or validate a real browser GPU. The shipped thumbnails are actual captures of the procedural shaders using the Acid Punch palette.
-
-Validation in the authoring environment: production build and all 11 integration tests passed; all 36 graphics programs compiled and linked with Mesa llvmpipe. The browser could inspect the original public app, where unavailable WebGL caused a startup crash. Access to the local browser preview was blocked, so desktop browser visual QA and actual Three.js scene rendering remain unverified. Check those on a hardware-accelerated desktop browser before merging.
-
-## Research and implementation
-
-New shaders are original implementations. References that informed the direction:
-
-- [Codrops: rotating twisted 3D typography](https://tympanus.net/codrops/2023/01/20/rotating-twisted-3d-typography-with-three-js-and-shaders/) — vertex deformation and dimensional type.
-- [Three.js ShaderMaterial](https://threejs.org/docs/pages/ShaderMaterial.html) — custom GPU text deformation.
-- [Three.js InstancedMesh](https://threejs.org/docs/pages/InstancedMesh.html) — repeated confetti geometry with fewer draw calls.
-- [Three.js examples](https://threejs.org/examples/) — procedural color, particles, and geometry experiments.
-
-Three.js and its example font are distributed through the pinned npm dependency under its included license. Existing branding and the original display features are retained.
+- MoMA describes Matisse arranging cut shapes from sheets of painted paper. This informed the independently colored silhouettes in Paper cut. [Matisse’s cut-outs](https://www.moma.org/magazine/articles/1156)
+- Letterform Archive documents Amos Kennedy Jr.’s variable overprinting on chipboard. This informed the interaction between the two inks and the stock in Overprint. [Amos Kennedy Jr.](https://letterformarchive.org/news/amos-kennedy-jr/)
