@@ -199,3 +199,10 @@ body.halftone-active #halftone[data-ready=true]{display:block}
 body.halftone-active #fallback{background-image:var(--scene-still);background-size:cover;background-position:center;filter:none!important}
 #panel #bgList [data-scene="Halftone Mono"]{grid-column:1/-1;display:flex;align-items:center;gap:10px}
 #bgList [data-scene="Halftone Mono"] .sample{width:82px;height:44px;flex:none;margin:0}
+
+#saturn{position:fixed;top:0;left:0;display:none;z-index:1;pointer-events:none;background:#f7f7f5}
+body.saturn-active #gl{display:none}
+body.saturn-active #saturn[data-ready=true]{display:block}
+body.saturn-active #fallback{background:#f7f7f5 var(--scene-still) center/cover;filter:none!important}
+#panel #bgList [data-scene="Dithered Saturn"]{grid-column:1/-1;display:flex;align-items:center;gap:10px}
+#bgList [data-scene="Dithered Saturn"] .sample{width:82px;height:44px;flex:none;margin:0}

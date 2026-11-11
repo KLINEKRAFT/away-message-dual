@@ -28,8 +28,8 @@ function input(a,id,value){const e=a.w.document.getElementById(id);e.value=value
 test('motion studio opens without WebGL and exposes only the retained library',()=>{
   const a=app();try{
     const doc=a.w.document;
-    assert.equal(doc.querySelectorAll('#sceneSelect option').length,23);
-    assert.equal(doc.querySelectorAll('#bgList button').length,7);
+    assert.equal(doc.querySelectorAll('#sceneSelect option').length,24);
+    assert.equal(doc.querySelectorAll('#bgList button').length,8);
     assert.equal(doc.querySelectorAll('#fontList button').length,4);
     assert.equal(doc.body.dataset.scene,'motion');
     assert.ok(doc.getElementById('clock').textContent);
