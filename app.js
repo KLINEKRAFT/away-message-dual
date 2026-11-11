@@ -96,7 +96,7 @@ function refreshFallback(){
   root.style.setProperty('--b',document.getElementById('cShdB').value);
   root.style.setProperty('--c',document.getElementById('cShdC').value);
 }
-const lightScenes=new Set(['Contour Lines','Mesh Gradient','Tidal Bands','Liquid Chrome']);
+const lightScenes=new Set(['Contour Lines','Mesh Gradient','Tidal Bands','Liquid Chrome','Halftone Mono']);
 const previousInk=LS.get('away_ink','');
 let autoInk=LS.get('away_auto_ink',['','#26392e','#101329'].includes(previousInk)?'1':'0')==='1';
 function applySceneInk(scene){
@@ -124,6 +124,9 @@ function refreshSelection(){
     const slug=scene.name.toLowerCase().replaceAll(' ','-');
     document.body.style.setProperty('--scene-still',`url('/scenes/${slug}.webp')`);
   }else document.body.style.removeProperty('--scene-still');
+  document.body.classList.toggle('halftone-active',!!scene.webgl2);
+  document.getElementById('fixedPaletteNote').hidden=!scene.webgl2;
+  for(const id of ['cShd','cShdB','cShdC','cBri','cSat'])document.getElementById(id).closest('.pr,.sz-row').hidden=!!scene.webgl2;
   document.body.dataset.scene=scene.paper?scene.name:'motion';
   document.getElementById('paperControls').hidden=!scene.paper;
   document.getElementById('sceneSelect').value=scene.name;
@@ -278,13 +281,13 @@ const SHADERS=[
 {name:'Lava Lamp',src:`void main(){vec2 uv=gl_FragCoord.xy/u_r;float ar=u_r.x/u_r.y;vec2 p=vec2(uv.x*ar,uv.y);float t=u_t*.14;float f=0.;for(int i=0;i<7;i++){float fi=float(i);vec2 b=vec2((.5+sin(t*(.33+fi*.11)+fi*2.4)*.36)*ar,.5+cos(t*(.26+fi*.09)+fi*1.7)*.4);float rad=.075+.045*sin(fi*3.1+t*.6);f+=rad*rad/max(dot(p-b,p-b),1e-5);}vec2 m=vec2(u_m.x*ar,u_m.y);f+=.006/max(dot(p-m,p-m),1e-4);float cd=distance(uv,u_ck.xy);f+=exp(-cd*8.)*exp(-u_ck.z*2.)*.6;float body=smoothstep(.95,1.2,f);float rim=smoothstep(.55,.95,f)-body;vec3 col=u_c3*.13+u_c3*uv.y*.09;col=mix(col,u_c*.92,body);col+=u_c2*rim*.8;col+=u_c2*smoothstep(2.,3.6,f)*.3;col+=u_c2*u_au*.25*body;gl_FragColor=vec4(clamp(col,0.,1.),1.);}`},
 {name:'Bokeh Drift',src:`void main(){vec2 uv=gl_FragCoord.xy/u_r;float ar=u_r.x/u_r.y;vec2 p=vec2(uv.x*ar,uv.y);vec3 col=u_c3*.09+mix(u_c3,u_c,uv.y)*.07;for(int L=0;L<3;L++){float fl=float(L);float sc=2.6+fl*1.9;float dir=(L==1)?-1.:1.;vec2 q=p*sc+vec2(u_t*(.05+fl*.03)*dir,sin(u_t*.04+fl*2.1)*.25);vec2 id=floor(q);vec2 f=fract(q)-.5;float rn=h(id+fl*31.7);vec2 off=(vec2(h(id+7.1),h(id+13.7))-.5)*.6;float d=length(f-off);float rad=.10+rn*.16;float tw=.35+.65*(.5+.5*sin(u_t*(.25+rn*.9)+rn*40.));float glow=exp(-pow(d/rad,2.)*3.5)*tw;vec3 bc=rn>.66?u_c:(rn>.33?u_c2:u_c3);col+=bc*glow*(.34-fl*.09);}float md=distance(uv,u_m);col+=u_c2*.09*exp(-md*md*6.);float cd=distance(uv,u_ck.xy);col+=sin(cd*30.-u_ck.z*7.)*exp(-cd*4.)*exp(-u_ck.z*2.2)*.13;col+=u_c2*u_au*.15;gl_FragColor=vec4(clamp(col,0.,1.),1.);}`},
 ];
-SHADERS.push(...EXTRA_SHADERS);
+SHADERS.push(...EXTRA_SHADERS, {name:'Halftone Mono',webgl2:true});
 const PAPER_SCENES = ['Paper cut','Overprint','Blank sheet'];
 const motionSceneCount = SHADERS.length;
 SHADERS.push(...PAPER_SCENES.map(name=>({name,paper:true})));
 // Rewrite shader sources to sample in world UV so the pattern spans across both monitors.
 SHADERS.forEach(s=>{
-  if(s.paper)return;
+  if(s.paper||s.webgl2)return;
   s.src = s.src
     .replace(/gl_FragCoord\.xy\s*\/\s*u_r/g, '(gl_FragCoord.xy+u_off)/u_world')
     .replace(/u_r\.x\s*\/\s*u_r\.y/g, 'u_world.x/u_world.y');
@@ -364,6 +367,36 @@ var CYCLE_MS=30000; // var so tests can shorten the auto-cycle period
 let shuffleOn=false;
 let analyser=null,audioData=null,audioStream=null,audioCtx=null;
 
+const halftoneCanvas=document.getElementById('halftone');
+let halftoneStage=null;
+let halftoneLoading=false;
+let halftoneFailed=false;
+const halftoneMotion=matchMedia('(prefers-reduced-motion: reduce)');
+function renderHalftone(time){
+  if(halftoneFailed)return;
+  if(!halftoneStage){
+    if(!halftoneLoading){
+      halftoneLoading=true;
+      import('./halftone-stage.js').then(module=>{
+        halftoneStage=module.createHalftoneStage(halftoneCanvas);
+        if(!halftoneStage)throw new Error('WebGL2 unavailable');
+      }).catch(error=>{
+        halftoneFailed=true;
+        console.warn('Halftone Mono is using its still preview',error);
+        document.getElementById('fixedPaletteNote').textContent='WebGL2 is unavailable. Showing a still preview of Halftone Mono.';
+      }).finally(()=>{halftoneLoading=false;});
+    }
+    return;
+  }
+  const world=worldDims();
+  // Both windows use the same pixel grid, including on mixed-DPI displays.
+  const dual=monitor2Width>0;
+  const budget=dual?2300000:quality==='eco'?1100000:quality==='high'?4200000:2300000;
+  const ratio=Math.min(dual?1:devicePixelRatio||1,2,Math.sqrt(budget/(world.w*world.h)));
+  halftoneStage.draw(halftoneMotion.matches?0:time,world,monitorOffsetX(),ratio);
+}
+addEventListener('pagehide',event=>{if(!event.persisted)halftoneStage?.dispose();});
+
 const msg=document.getElementById('msg');
 let curAnim='',curScroll='',origText=msg.textContent;
 let glitchTimer=null,glitchInner=null,typeTimer=null;
@@ -416,7 +449,7 @@ function loop(){
 
   }
 
-  if(gl&&!glLost&&!SHADERS[cur].paper){
+  if(gl&&!glLost&&!SHADERS[cur].paper&&!SHADERS[cur].webgl2){
   const g=programFor(cur);
   if(g){
   const wd = worldDims();
@@ -440,6 +473,7 @@ function loop(){
   }
   }
 
+  if(SHADERS[cur].webgl2)renderHalftone(t);
   updateTicker();
   if(cur===motionSceneCount||cur===motionSceneCount+1){
     const variable=cur===motionSceneCount?'--cut-shift':'--press-shift';
@@ -639,7 +673,7 @@ for(const [label,items] of [['Motion',SHADERS.slice(0,motionSceneCount)],['Paper
 }
 sceneSelect.onchange=()=>pickShader(SHADERS.findIndex(s=>s.name===sceneSelect.value));
 const bgList=document.getElementById('bgList');
-const featured=['Contour Lines','Topo Glow','Tidal Bands','Light Ribbons','Mesh Gradient','Silk Flow'];
+const featured=['Halftone Mono','Contour Lines','Topo Glow','Tidal Bands','Light Ribbons','Mesh Gradient','Silk Flow'];
 for(const name of featured){
   const button=document.createElement('button');
   button.type='button';

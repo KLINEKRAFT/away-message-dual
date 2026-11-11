@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&amp;family=DM+Mono&amp;family=Outfit:wght@400;500;600&amp;family=Syne:wght@600&amp;display=swap" rel="stylesheet"/>
 <link href="/style.css" rel="stylesheet"/>
 </head>
-<body><main id="poster"><div aria-hidden="true" id="fallback"></div><canvas id="gl"></canvas><div aria-hidden="true" id="printWorld"><div class="sheet"></div><div class="wash"></div><div class="cut cut-a"></div><div class="cut cut-b"></div><div class="press press-a"></div><div class="press press-b"></div><div class="fibers"></div></div><div id="countdown"></div><div id="clock"></div><div id="msgOuter">
+<body><main id="poster"><div aria-hidden="true" id="fallback"></div><canvas id="gl"></canvas><canvas aria-hidden="true" id="halftone"></canvas><div aria-hidden="true" id="printWorld"><div class="sheet"></div><div class="wash"></div><div class="cut cut-a"></div><div class="cut cut-b"></div><div class="press press-a"></div><div class="press press-b"></div><div class="fibers"></div></div><div id="countdown"></div><div id="clock"></div><div id="msgOuter">
 <div id="messageWrap">
 <div aria-label="Away message" aria-multiline="true" contenteditable="true" id="msg" role="textbox" spellcheck="false" tabindex="0">Be right back</div>
 </div>
@@ -19,7 +19,7 @@
 </div></main>
 <aside aria-label="Display editor" id="panel" inert=""><header class="panel-head"><h1>Motion Studio</h1><button aria-label="Close editor" id="editBtn">×</button></header>
 <nav aria-label="Studio sections" class="studio-tabs" role="tablist"><button aria-controls="scenePane" aria-selected="true" data-tab="scene" id="tab-scene" role="tab" tabindex="0">Scene</button><button aria-controls="typePane" aria-selected="false" data-tab="type" id="tab-type" role="tab" tabindex="-1">Message</button><button aria-controls="setupPane" aria-selected="false" data-tab="setup" id="tab-setup" role="tab" tabindex="-1">Display</button></nav><div aria-labelledby="tab-scene" class="studio-pane" id="scenePane" role="tabpanel"><div class="grp"><div class="glbl">Featured motion</div><div id="bgList"></div><label class="field">Scene library<select id="sceneSelect"></select></label></div><div class="grp"><div class="glbl">Motion</div><div class="sz-row"><label for="motionR">Speed</label><input id="motionR" max="2.5" min="0.15" step="0.05" type="range" value="1"/><output id="motionVal">1.00×</output></div><button class="abtn" id="pauseBtn">Pause motion</button></div><div class="grp" id="paperControls"><label class="field">Paper stock<select id="stock"><option value="cotton">Cotton rag</option><option value="laid">Laid paper</option><option value="kraft">Natural kraft</option></select></label><div class="sz-row"><label for="wash">Color wash</label><input id="wash" max="100" min="0" type="range"/><output id="washValue"></output></div></div><div class="grp">
-<div class="glbl">Colors</div>
+<div class="glbl">Colors</div><p class="helper" id="fixedPaletteNote" hidden>Halftone Mono uses its original black ink and off-white paper palette.</p>
 <div class="pr"><label for="cInk">Text</label><button type="button" id="autoInk" aria-pressed="true">Auto</button><input aria-label="Text color" id="cInk" type="color" value="#f0ede6"/></div>
 <div class="pr"><label>Accent</label><input aria-label="Accent color" id="cAcc" type="color" value="#d24317"/></div>
 <div class="pr"><label>Base color</label><input aria-label="Background primary" id="cShd" type="color" value="#cfcabf"/></div>

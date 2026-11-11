@@ -192,3 +192,10 @@ body[data-scene=motion] #monitorBadge{top:calc(4.5vh + 34px)}
 body.no-webgl[data-scene=motion] #fallback{background-image:var(--scene-still,linear-gradient(122deg,var(--a),var(--c) 52%,var(--b)));background-size:cover;background-position:center}
 @media(min-width:900px){body.popen{background:#252932}}
 #autoInk{margin-left:auto;font-size:11px!important;padding:4px 9px!important}
+
+#halftone{position:fixed;top:0;left:0;display:none;z-index:1;pointer-events:none}
+body.halftone-active #gl{display:none}
+body.halftone-active #halftone[data-ready=true]{display:block}
+body.halftone-active #fallback{background-image:var(--scene-still);background-size:cover;background-position:center;filter:none!important}
+#panel #bgList [data-scene="Halftone Mono"]{grid-column:1/-1;display:flex;align-items:center;gap:10px}
+#bgList [data-scene="Halftone Mono"] .sample{width:82px;height:44px;flex:none;margin:0}

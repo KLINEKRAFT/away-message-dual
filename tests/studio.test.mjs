@@ -28,8 +28,8 @@ function input(a,id,value){const e=a.w.document.getElementById(id);e.value=value
 test('motion studio opens without WebGL and exposes only the retained library',()=>{
   const a=app();try{
     const doc=a.w.document;
-    assert.equal(doc.querySelectorAll('#sceneSelect option').length,22);
-    assert.equal(doc.querySelectorAll('#bgList button').length,6);
+    assert.equal(doc.querySelectorAll('#sceneSelect option').length,23);
+    assert.equal(doc.querySelectorAll('#bgList button').length,7);
     assert.equal(doc.querySelectorAll('#fontList button').length,4);
     assert.equal(doc.body.dataset.scene,'motion');
     assert.ok(doc.getElementById('clock').textContent);
@@ -82,7 +82,7 @@ test('Featured scene selection and keyboard tabs reveal the intended controls',(
   const a=app();try{
     a.w.document.querySelector('[data-tab=scene]').click();
     assert.equal(a.w.document.getElementById('scenePane').hidden,false);
-    a.w.document.querySelectorAll('#bgList button')[2].click();
+    a.w.document.querySelector('#bgList [data-scene="Tidal Bands"]').click();
     assert.equal(a.w.document.getElementById('sceneSelect').value,'Tidal Bands');
     a.w.document.querySelector('[data-tab=scene]').dispatchEvent(new a.w.KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}));
     assert.equal(a.w.document.getElementById('typePane').hidden,false);
